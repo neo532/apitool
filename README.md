@@ -58,6 +58,13 @@ apitool grpcclient api/{example1}/{pkg1}/{pkg1}.api.proto
 ```
 
 
+### 生成Service层文件
+```
+// -t 路径，以项目根路径开始,不传默认proto同级目录
+apitool service api/{example1}/{pkg1}/{pkg1}.api.proto -t api/{example1}/{pkg1}
+```
+
+
 ### 编写错误码proto文件后，在api根目录执行，生成错误码文件
 ```
 make errors
