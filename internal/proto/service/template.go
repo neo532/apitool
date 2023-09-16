@@ -26,10 +26,13 @@ import (
 
 type {{ .Service }}{{ .ServiceType }} struct {
     pb.Unimplemented{{ .Service }}Server
+	tag string
 }
 
 func New{{ .Service }}{{ .ServiceType }}() *{{ .Service }}{{ .ServiceType }} {
-    return &{{ .Service }}{{ .ServiceType }}{}
+    return &{{ .Service }}{{ .ServiceType }}{
+		tag : "{{ .ServiceType }}.{{ .Service }}",
+	}
 }
 
 {{- $s1 := "google.protobuf.Empty" }}

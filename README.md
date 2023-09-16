@@ -18,7 +18,15 @@ cd apitool
 make init
 ```
 
-
+## 响应值外包模版
+将该字符串放入{filePath}.tpl文件中,然后将{filePath}写入rpc.option下的RespTpl值里面即可
+```
+message {{ .Reply }}Wraper {
+    int32 code = 1;
+    string message = 2;
+    {{ .Reply }} data = 3;
+}
+```
 
 ## 创建 & 生成
 {微服务名}/{包名}/{文件名}.proto

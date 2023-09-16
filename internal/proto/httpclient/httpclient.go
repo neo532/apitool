@@ -27,7 +27,7 @@ var (
 )
 
 func init() {
-	CmdClient.Flags().StringVarP(&targetDir, "target-dir", "t", "", "generate target directory")
+	//CmdClient.Flags().StringVarP(&targetDir, "target-dir", "t", "", "generate target directory")
 }
 
 func run(cmd *cobra.Command, args []string) {
@@ -35,18 +35,26 @@ func run(cmd *cobra.Command, args []string) {
 		fmt.Fprintln(os.Stderr, "Please specify the proto file. Example: apitool httpclient api/xxx.proto")
 		return
 	}
+	for _, v := range args {
+		buildHttpClient(cmd, v)
+	}
+}
+
+func buildHttpClient(cmd *cobra.Command, filePath string) {
+	var err error
 
 	pb := &Proto{
 		MessageNameMap: make(map[string]struct{}, 10),
 		Services:       make([]*Service, 0, 10),
-		FilePath:       args[0],
+		FilePath:       filePath,
+		CacheTpl:       make(map[string]string, 1),
 	}
 
-	if targetDir == "" {
-		targetDir = filepath.Dir(pb.FilePath)
-	}
+	//targetDir = filepath.Dir(pb.FilePath)
+	targetDir = filepath.Dir(filePath)
 
-	definition, err := pb.ReadProtoFile()
+	var definition *proto.Proto
+	definition, err = pb.ReadProtoFile()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, fmt.Sprintf("Read proto[%s] has err[%+v]", pb.FilePath, err))
 		return
@@ -137,8 +145,14 @@ func run(cmd *cobra.Command, args []string) {
 
 		// .proto 结尾的文件
 		for _, m := range s.Methods {
+
+			var tpl string
+			if tpl, err = pb.GetTpl(m); err != nil {
+				fmt.Fprintln(os.Stderr, fmt.Sprintf("BuildHttpClient %s has error[%+v]", pb.FilePath, err))
+				return
+			}
 			if pb.IsNeedWraper(m) == true {
-				pb.NewWraper(m)
+				pb.NewWraper(m, tpl)
 			}
 		}
 		pb.AppendWraper()
