@@ -31,7 +31,7 @@ type {{ .Service }}{{ .ServiceType }} struct {
 
 func New{{ .Service }}{{ .ServiceType }}() *{{ .Service }}{{ .ServiceType }} {
     return &{{ .Service }}{{ .ServiceType }}{
-		tag : "{{ .ServiceType }}.{{ .Service }}",
+		tag : "{{ .PackageName }}.{{ .Service }}{{ .ServiceType }}",
 	}
 }
 
