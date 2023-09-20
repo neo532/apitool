@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"html/template"
+	"strings"
 )
 
 //nolint:lll
@@ -38,12 +39,12 @@ func New{{ .Service }}{{ .ServiceType }}() *{{ .Service }}{{ .ServiceType }} {
 {{- $s1 := "google.protobuf.Empty" }}
 {{ range .Methods }}
 {{- if eq .Type 1 }}
-func (s *{{ .Service }}{{ .ServiceType }}) {{ .Name }}(c context.Context, req {{ if eq .Request $s1 }}*emptypb.Empty{{ else }}*pb.{{ .Request }}{{ end }}) (reply {{ if eq .Reply $s1 }}*emptypb.Empty{{ else }}*pb.{{ .Reply }}{{ end }}, err error) {
+func ({{ .ServiceShortAlias }} *{{ .Service }}{{ .ServiceType }}) {{ .Name }}(c context.Context, req {{ if eq .Request $s1 }}*emptypb.Empty{{ else }}*pb.{{ .Request }}{{ end }}) (reply {{ if eq .Reply $s1 }}*emptypb.Empty{{ else }}*pb.{{ .Reply }}{{ end }}, err error) {
     return 
 }
 
 {{- else if eq .Type 2 }}
-func (s *{{ .Service }}{{ .ServiceType }}) {{ .Name }}(conn pb.{{ .Service }}_{{ .Name }}Server) error {
+func ({{ .ServiceShortAlias }} *{{ .Service }}{{ .ServiceType }}) {{ .Name }}(conn pb.{{ .Service }}_{{ .Name }}Server) error {
     for {
         req, err := conn.Recv()
         if err == io.EOF {
@@ -61,7 +62,7 @@ func (s *{{ .Service }}{{ .ServiceType }}) {{ .Name }}(conn pb.{{ .Service }}_{{
 }
 
 {{- else if eq .Type 3 }}
-func (s *{{ .Service }}{{ .ServiceType }}) {{ .Name }}(conn pb.{{ .Service }}_{{ .Name }}Server) error {
+func ({{ .ServiceShortAlias }} *{{ .Service }}{{ .ServiceType }}) {{ .Name }}(conn pb.{{ .Service }}_{{ .Name }}Server) error {
     for {
         req, err := conn.Recv()
         if err == io.EOF {
@@ -74,7 +75,7 @@ func (s *{{ .Service }}{{ .ServiceType }}) {{ .Name }}(conn pb.{{ .Service }}_{{
 }
 
 {{- else if eq .Type 4 }}
-func (s *{{ .Service }}{{ .ServiceType }}) {{ .Name }}(req {{ if eq .Request $s1 }}*emptypb.Empty
+func ({{ .ServiceShortAlias }} *{{ .Service }}{{ .ServiceType }}) {{ .Name }}(req {{ if eq .Request $s1 }}*emptypb.Empty
 {{ else }}*pb.{{ .Request }}{{ end }}, conn pb.{{ .Service }}_{{ .Name }}Server) error {
     for {
         err := conn.Send(&pb.{{ .Reply }}{})
@@ -107,8 +108,9 @@ type Service struct {
 	ServiceType string
 	PackageName string
 
-	UseIO      bool
-	UseContext bool
+	UseIO             bool
+	UseContext        bool
+	ServiceShortAlias string
 }
 
 // Method is a proto method.
@@ -139,6 +141,7 @@ func (s *Service) execute() ([]byte, error) {
 			s.UseContext = true
 		}
 	}
+	s.ServiceShortAlias = strings.ToLower(s.PackageName[:1])
 	tmpl, err := template.New("service").Parse(serviceTemplate)
 	if err != nil {
 		return nil, err
