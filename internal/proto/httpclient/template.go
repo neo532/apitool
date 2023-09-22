@@ -41,8 +41,6 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 	{{- end }}
 
-	// "github.com/neo532/apitool/encoding/json"
-	// "github.com/neo532/apitool/encoding/xml"
 	kithttp "github.com/neo532/apitool/transport/http"
 	"github.com/neo532/apitool/transport/http/xhttp"
 )
@@ -73,7 +71,7 @@ func New{{ .Service }}XHttpClient(clt xhttp.Client) (xclt *{{ .Service }}XHttpCl
 {{- $s1 := "google.protobuf.Empty" }}
 {{ range .Methods }}
 {{- if eq .Type 1 }}
-func (s *{{ .Service }}XHttpClient) {{ .Name }}(ctx context.Context, req {{ if eq .Request $s1 }}*emptypb.Empty {{ else }}*{{ .Request }}{{ end }}) (resp{{ if eq .Reply $s1 }} *emptypb.Empty{{ else if eq .RespTpl "origin" }} *{{ .Reply }}{{ else }} *{{ .Reply }}Wraper{{ end }}, err error) {
+func (s *{{ .Service }}XHttpClient) {{ .Name }}(ctx context.Context, req {{ if eq .Request $s1 }}*emptypb.Empty {{ else }}*{{ .Request }}{{ end }}) (resp{{ if eq .Reply $s1 }} *emptypb.Empty{{ else if eq .RespTpl "" }} *{{ .Reply }}{{ else }} *{{ .Reply }}Wraper{{ end }}, err error) {
 	{{ if ne .Function "" }}req = {{ .Function }}(ctx, req){{ end }}
 
 	opts := make([]xhttp.Opt, 0, 6)
@@ -101,7 +99,7 @@ func (s *{{ .Service }}XHttpClient) {{ .Name }}(ctx context.Context, req {{ if e
 	if body, err = respObj.Body(ctx); err!=nil {
 		return
 	}
-	{{ if eq .RespTpl "origin" }}resp = &{{ .Reply }}{}{{ else }}resp = &{{ .Reply }}Wraper{}{{ end }}
+	{{ if eq .RespTpl "" }}resp = &{{ .Reply }}{}{{ else }}resp = &{{ .Reply }}Wraper{}{{ end }}
 	err = s.XClient.Codec("{{ .ContentTypeResponse }}").Unmarshal(body, resp)
 	{{ else }}
 	s.wrapper.Call(ctx, s.Domain, opts...)

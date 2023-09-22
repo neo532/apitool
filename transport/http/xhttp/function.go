@@ -125,7 +125,7 @@ func AppendUrlByKV(url, k, v string) (s string) {
 	case k == "":
 	case string(k[0]) == "{":
 		url = strings.Replace(url, k, v, -1)
-	case url == "":
+	case strings.Index(url, "?") == -1:
 		url += "?" + k + FORM_ASSIGN + v
 	default:
 		url += FORM_AND + k + FORM_ASSIGN + v
