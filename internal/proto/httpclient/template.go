@@ -81,6 +81,7 @@ func (s *{{ .Service }}XHttpClient) {{ .Name }}(ctx context.Context, req {{ if e
 	opts = append(opts, xhttp.WithRetryTimes({{ .RetryTimes }})){{ end }} {{ if ne .RetryDuration "" }}
 	opts = append(opts, xhttp.WithRetryDuration({{ .RetryDuration }}*time.Second)){{ end }} {{ if ne .RetryMaxDuration "" }}
 	opts = append(opts, xhttp.WithRetryMaxDuration({{ .RetryMaxDuration }}*time.Second)){{ end }} {{ if eq .Method "GET" }}
+	opts = append(opts, xhttp.WithHeader(ctx))
 	if ctx, err = xhttp.AppendUrlByStruct(ctx, req); err!=nil {
 		return
 	}
