@@ -177,7 +177,7 @@ func (r Client) Do(c context.Context, opts ...Opt) (clt *Client) {
 		})
 	}
 
-	for i := 0; i < req.req.retryTimes; i++ {
+	for i := 0; i <= req.req.retryTimes; i++ {
 
 		clt = req.do(c)
 		if clt.resp.httpResp != nil &&
