@@ -129,7 +129,7 @@ func buildHttpClient(cmd *cobra.Command, filePath string) {
 	for _, s := range pb.Services {
 
 		// ._http.client.go 结尾的文件
-		to := path.Join(targetDir, strings.ToLower(s.Service)+"_http.client.go")
+		to := path.Join(targetDir, strings.ToLower(s.Service)+".httpclient.pb.go")
 		//if _, err := os.Stat(to); !os.IsNotExist(err) {
 		//fmt.Fprintf(os.Stderr, "%s already exists: %s\n", s.Service, to)
 		//continue
@@ -158,7 +158,7 @@ func buildHttpClient(cmd *cobra.Command, filePath string) {
 		pb.AppendWraper()
 
 		// 将追加的wraper重新生成PB
-		base.Run("../apitool/apitool", "pbstruct", pb.FilePath)
+		base.Run("apitool", "pbstruct", pb.FilePath)
 	}
 }
 

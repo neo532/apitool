@@ -108,9 +108,8 @@ type Service struct {
 	ServiceType string
 	PackageName string
 
-	UseIO             bool
-	UseContext        bool
-	ServiceShortAlias string
+	UseIO      bool
+	UseContext bool
 }
 
 // Method is a proto method.
@@ -123,7 +122,8 @@ type Method struct {
 	// type: unary or stream
 	Type MethodType
 
-	ServiceType string
+	ServiceType       string
+	ServiceShortAlias string
 }
 
 func (s *Service) execute() ([]byte, error) {
@@ -140,8 +140,8 @@ func (s *Service) execute() ([]byte, error) {
 		if method.Type == unaryType {
 			s.UseContext = true
 		}
+		method.ServiceShortAlias = strings.ToLower(s.PackageName[:1])
 	}
-	s.ServiceShortAlias = strings.ToLower(s.PackageName[:1])
 	tmpl, err := template.New("service").Parse(serviceTemplate)
 	if err != nil {
 		return nil, err
