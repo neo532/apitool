@@ -30,7 +30,8 @@ type {{ .Service }}{{ .ServiceType }} struct {
 	tag string
 }
 
-func New{{ .Service }}{{ .ServiceType }}() *{{ .Service }}{{ .ServiceType }} {
+func New{{ .Service }}{{ .ServiceType }}(
+) *{{ .Service }}{{ .ServiceType }} {
     return &{{ .Service }}{{ .ServiceType }}{
 		tag : "{{ .PackageName }}.{{ .Service }}{{ .ServiceType }}",
 	}
