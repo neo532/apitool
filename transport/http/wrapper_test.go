@@ -9,7 +9,7 @@ import (
 
 	"github.com/neo532/apitool/transport"
 	"github.com/neo532/apitool/transport/http/xhttp"
-
+	"github.com/neo532/apitool/transport/http/xhttp/client"
 	"github.com/neo532/apitool/transport/http/xhttp/header"
 	"github.com/neo532/apitool/transport/http/xhttp/queryargs"
 )
@@ -24,13 +24,13 @@ func (l *Logger) Error(c context.Context, msg string) {
 	fmt.Println(fmt.Sprintf("%+v", msg))
 }
 
-func clt() (clt xhttp.Client) {
+func clt() (clt client.Client) {
 	env, _ := transport.String2Env("dev")
-	clt = xhttp.New(
-		xhttp.WithLogger(&Logger{}),
-		xhttp.WithEnv(env),
-		xhttp.WithMap("aa", "aaa"),
-		xhttp.WithMap("bb", "bbb"),
+	clt = client.New(
+		client.WithLogger(&Logger{}),
+		client.WithEnv(env),
+		client.WithMap("aa", "aaa"),
+		client.WithMap("bb", "bbb"),
 	)
 	return
 }
@@ -54,46 +54,48 @@ func TWrap() {
 	c := context.Background()
 	c = header.AppendToContext(
 		c,
-		"Content-Type", "application/jsona",
+		"Content-Type", "application/json",
 		"User-Agent", "ssssssss",
+		"traceId", "aaaa",
 	)
 	c = queryargs.AppendToContext(c, "{user}", "b")
 
 	url := "http://127.0.0.1:8500/user/{user}"
-	method := "PUT"
+	method := "POST"
 
 	opts := make([]xhttp.Opt, 0, 6)
 	opts = append(opts, xhttp.WithUrl(url))
 	opts = append(opts, xhttp.WithMethod(method))
-	opts = append(opts, xhttp.WithHeader(c))
 	type P struct {
-		A    string `json:"a" form:"a"`
-		B    int    `json:"b" form:"b"`
-		Name string `json:"name" form:"name"`
+		A       string `json:"a" form:"a"`
+		B       int    `json:"b" form:"b"`
+		Name    string `json:"name" form:"name"`
+		Message string `json:"message" form:"a"`
+		Code    int    `json:"code" form:"b"`
+		RankId  int    `json:"rankId" form:"b"`
 	}
 
 	var err error
-	c, err = xhttp.AppendUrlByStruct(c, &P{"aaaa", 1222, "ccccc"})
+	c, err = xhttp.AppendUrlByStruct(c, &P{A: "aaaa", B: 1222, Name: "ccccc"})
 	if err != nil {
 		panic(err)
 	}
 
 	if method == "POST" {
-		b, _ := xhttp.ToJsonBody(&P{"aaaaa", 111, "ccc"})
-		opts = append(opts, xhttp.WithBody(b))
+		//b, _ := xhttp.ToJsonBody(&P{"aaaaa", 111, "ccc"})
 	}
 
-	client := NewWrapper(clt()).Call(
+	reply := &P{}
+	err = NewWrapper(clt()).Call(
 		c,
-		url,
+		&P{A: "aaaa", B: 1222, Name: "ccccc", RankId: 222},
+		reply,
 		opts...,
 	)
-
-	_, err = client.Body(c)
 	if err != nil {
 		fmt.Println(fmt.Sprintf("err:\t%+v", err))
 	}
 
-	//fmt.Println(string(body))
+	fmt.Println(reply)
 	fmt.Println(runtime.Caller(0))
 }

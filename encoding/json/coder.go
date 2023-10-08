@@ -7,7 +7,13 @@ import (
 	gtproto "github.com/golang/protobuf/proto"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
+
+	"github.com/neo532/apitool/encoding"
 )
+
+func init() {
+	encoding.RegisterCodec(NewCodec())
+}
 
 type opt func(cc *Codec)
 
@@ -21,14 +27,12 @@ func WithMarshalEmitUnpopulated(b bool) opt {
 type Codec struct {
 	marshalOptions   protojson.MarshalOptions
 	unmarshalOptions protojson.UnmarshalOptions
-	name             string
 }
 
 func NewCodec(opts ...opt) (cc *Codec) {
 	cc = &Codec{
 		marshalOptions:   MarshalOptions,
 		unmarshalOptions: UnmarshalOptions,
-		name:             Name,
 	}
 	for _, o := range opts {
 		o(cc)
@@ -76,5 +80,5 @@ func (cc *Codec) Unmarshal(data []byte, v interface{}) error {
 }
 
 func (cc *Codec) Name() string {
-	return cc.name
+	return "json"
 }

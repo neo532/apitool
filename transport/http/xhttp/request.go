@@ -9,302 +9,281 @@ package xhttp
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 	"unicode/utf8"
 
+	"github.com/neo532/apitool/encoding"
 	"github.com/neo532/apitool/transport"
+	"github.com/neo532/apitool/transport/http/xhttp/client"
 	"github.com/neo532/apitool/transport/http/xhttp/header"
+	"github.com/neo532/apitool/transport/http/xhttp/middleware"
 	"github.com/neo532/apitool/transport/http/xhttp/queryargs"
 )
 
-type Client struct {
-	logger transport.Logger
-	req    *request
-	resp   *response
-	env    transport.Env
-}
-type response struct {
-	httpResp *http.Response
-	body     []byte
-	cost     time.Duration
-	err      error
-}
+type Request struct {
+	clt client.Client
 
-type request struct {
-	timeLimit time.Duration
-	url       string
-	method    string
-	body      *bytes.Reader
-	header    http.Header
+	url                 string
+	method              string
+	contentType         string
+	contentTypeResponse string
 
-	mapValue sync.Map
+	retryTimes       int
+	retryMaxDuration time.Duration
+	retryDuration    time.Duration
+	timeLimit        time.Duration
 
-	responseMaxLength int
-	bodyCurl          string
-	headerCurl        string
-	retryTimes        int
-	retryMaxDuration  time.Duration
-	retryDuration     time.Duration
-	succFunc          func(statusCode int) (b bool)
+	encoder      EncodeRequestFunc
+	decoder      DecodeResponseFunc
+	errorDecoder DecodeErrorFunc
 }
 
 // ========== Opt ==========
-type Opt func(o *Client)
+type Opt func(o *Request)
 
-func WithEnv(env transport.Env) Opt {
-	return func(o *Client) {
-		o.env = env
-	}
-}
 func WithTimeLimit(d time.Duration) Opt {
-	return func(o *Client) {
-		o.req.timeLimit = d
+	return func(o *Request) {
+		o.timeLimit = d
 	}
 }
 func WithUrl(s string) Opt {
-	return func(o *Client) {
-		o.req.url = s
+	return func(o *Request) {
+		o.url = s
 	}
 }
 func WithMethod(m string) Opt {
-	return func(o *Client) {
-		o.req.method = m
+	return func(o *Request) {
+		o.method = m
 	}
 }
-func WithBody(param []byte) Opt {
-	return func(o *Client) {
-		o.req.body = bytes.NewReader(param)
-		if len(param) > 0 {
-			o.req.bodyCurl = " -d " + "'" + string(param) + "'"
-		}
+func WithContentType(ct string) Opt {
+	return func(o *Request) {
+		o.contentType = ct
 	}
 }
-func WithHeader(c context.Context) Opt {
-	return func(o *Client) {
-
-		var bHeader strings.Builder
-		if md, ok := header.FromContext(c); ok {
-			md.Range(func(k string, vs []string) (b bool) {
-				for _, v := range vs {
-					o.req.header.Set(k, v)
-					bHeader.WriteString(" -H '" + k + ":" + v + "'")
-				}
-				return true
-			})
-		}
-
-		o.req.headerCurl = bHeader.String()
+func WithContentTypeResponse(ct string) Opt {
+	return func(o *Request) {
+		o.contentTypeResponse = ct
 	}
 }
 func WithRetryTimes(times int) Opt {
-	return func(o *Client) {
-		o.req.retryTimes = times
+	return func(o *Request) {
+		o.retryTimes = times
 	}
 }
 func WithRetryDuration(d time.Duration) Opt {
-	return func(o *Client) {
-		o.req.retryDuration = d
+	return func(o *Request) {
+		o.retryDuration = d
 	}
 }
 func WithRetryMaxDuration(d time.Duration) Opt {
-	return func(o *Client) {
-		o.req.retryMaxDuration = d
-	}
-}
-func WithLogger(l transport.Logger) Opt {
-	return func(o *Client) {
-		o.logger = l
-	}
-}
-func WithResponseMaxLength(l int) Opt {
-	return func(o *Client) {
-		o.req.responseMaxLength = l
-	}
-}
-func WithSuccFunc(fn func(statusCode int) (b bool)) Opt {
-	return func(o *Client) {
-		o.req.succFunc = fn
-	}
-}
-func WithMap(key, value string) Opt {
-	return func(o *Client) {
-		o.req.mapValue.Store(key, value)
+	return func(o *Request) {
+		o.retryMaxDuration = d
 	}
 }
 
 // ========== /Opt ==========
 
-func New(opts ...Opt) (client Client) {
-	client = Client{
-		env: transport.EnvProd,
-		req: &request{
-			retryTimes:        2,
-			retryDuration:     time.Microsecond,
-			retryMaxDuration:  20 * time.Microsecond,
-			responseMaxLength: 512,
-			timeLimit:         3 * time.Second,
-			body:              bytes.NewReader([]byte("")),
-			header:            http.Header{},
-			succFunc: func(statusCode int) (b bool) {
-				return statusCode == http.StatusOK
-			},
-		},
-		resp:   &response{},
-		logger: &transport.LoggerDefault{},
+func New(clt client.Client, opts ...Opt) (req *Request) {
+	req = &Request{
+		retryTimes:       1,
+		retryDuration:    time.Microsecond,
+		retryMaxDuration: 20 * time.Microsecond,
+		timeLimit:        3 * time.Second,
+
+		errorDecoder: DefaultErrorDecoder,
+		encoder:      DefaultRequestEncoder,
+		decoder:      DefaultResponseDecoder,
+		clt:          clt,
 	}
 	for _, o := range opts {
-		o(&client)
+		o(req)
 	}
 	return
 }
 
-func (r Client) Do(c context.Context, opts ...Opt) (clt *Client) {
-	req := r
-	for _, o := range opts {
-		o(&req)
+func (r *Request) Do(c context.Context, req interface{}, reply interface{}) (err error) {
+
+	h := func(c context.Context, req interface{}, reply interface{}) (err error) {
+
+		var reqBody []byte
+		reqBody, err = r.encoder(c, r.contentType, req)
+
+		url := r.FmtQueryArgs(c, r.url)
+
+		var param *http.Request
+		param, err = http.NewRequest(r.method, url, bytes.NewReader(reqBody))
+		if err != nil {
+			return
+		}
+		var headerBCurl strings.Builder
+		param.Header, headerBCurl = r.FmtHeader(c)
+
+		client := &http.Client{Timeout: r.timeLimit}
+
+		retryDuration := r.retryDuration
+		for i := 0; i <= r.retryTimes; i++ {
+
+			// request
+			var resp *http.Response
+			start := time.Now()
+			resp, err = client.Do(param)
+			cost := time.Now().Sub(start)
+
+			var respCode int
+			var respBody []byte
+			if resp != nil {
+				respCode = resp.StatusCode
+
+				if err == nil {
+					if r.contentTypeResponse != "" {
+						resp.Header.Set(ContentTypeHeaderKey, r.contentTypeResponse)
+					}
+					respBody, err = r.decoder(c, resp, reply)
+				}
+			}
+
+			r.log(c, url, headerBCurl, reqBody, respCode, respBody, cost, err)
+
+			c = header.AppendToContext(c,
+				"url", r.url,
+				"cost", cost.String(),
+				"limit", r.timeLimit.String(),
+				"httpcode", strconv.Itoa(respCode),
+			)
+
+			if err = r.errorDecoder(c, resp); err == nil {
+				break
+			}
+
+			time.Sleep(r.retryDuration)
+			if retryDuration < r.retryMaxDuration {
+				retryDuration = retryDuration + retryDuration
+			}
+		}
+		return
 	}
+
+	if len(r.clt.Middlewares()) > 0 {
+		h = middleware.Chain(r.clt.Middlewares()...)(h)
+	}
+	return h(c, req, reply)
+}
+
+func (r *Request) log(c context.Context,
+	url string, header strings.Builder, reqBody []byte,
+	respCode int, respBody []byte, cost time.Duration, err error) {
+	respStr := string(respBody)
+	if r.clt.Env() == transport.EnvProd && utf8.RuneCountInString(respStr) > r.clt.ResponseMaxLength() {
+		respStr = string([]rune(respStr)[:r.clt.ResponseMaxLength()]) + "..."
+	}
+
+	reqBodyS := string(reqBody)
+	if len(reqBodyS) != 0 {
+		reqBodyS = " -d '" + string(reqBodyS) + "'"
+	}
+	msg := fmt.Sprintf("[code:%d] [limit:%s] [cost:%s] [curl -X '%s' '%s'%s%s] [rst:%s]",
+		respCode,
+		r.timeLimit.String(),
+		cost.String(),
+		r.method,
+		url,
+		header.String(),
+		reqBodyS,
+		respStr,
+	)
+	if err != nil {
+		r.clt.Logger().Error(c, fmt.Sprintf("[err:%s] %s", err.Error(), msg))
+		return
+	}
+	r.clt.Logger().Info(c, msg)
+}
+
+func (r *Request) FmtQueryArgs(c context.Context, url string) string {
 	if qa, ok := queryargs.FromContext(c); ok {
 		qa.Range(func(k, v string) (b bool) {
-			r.req.url = AppendUrlByKV(r.req.url, k, v)
+			url = AppendUrlByKV(url, k, v)
 			return true
 		})
 	}
+	return url
+}
 
-	for i := 0; i <= req.req.retryTimes; i++ {
-
-		clt = req.do(c)
-		if clt.resp.httpResp != nil &&
-			req.req.succFunc(
-				clt.resp.httpResp.StatusCode) {
-			break
-		}
-
-		time.Sleep(req.req.retryDuration)
-		if req.req.retryDuration < req.req.retryMaxDuration {
-			req.req.retryDuration = req.req.retryDuration + req.req.retryDuration
-		}
+func (r *Request) FmtHeader(c context.Context) (h http.Header, curl strings.Builder) {
+	h = http.Header{}
+	if md, ok := header.FromContext(c); ok {
+		md.Range(func(k string, vs []string) (b bool) {
+			for _, v := range vs {
+				h.Set(k, v)
+				curl.WriteString(" -H '" + k + ":" + v + "'")
+			}
+			return true
+		})
+	}
+	if r.contentType != "" {
+		h.Set(ContentTypeHeaderKey, r.contentType)
+		curl.WriteString(" -H '" + ContentTypeHeaderKey + ":" + r.contentType + "'")
+		return
+	}
+	if h.Get(ContentTypeHeaderKey) == "" {
+		h.Set(ContentTypeHeaderKey, ContentTypeHeaderDefaultValue)
+		curl.WriteString(" -H '" + ContentTypeHeaderKey + ":" + ContentTypeHeaderDefaultValue + "'")
 	}
 	return
 }
 
-func (r Client) do(c context.Context) *Client {
+// DecodeErrorFunc is decode error func.
+type DecodeErrorFunc func(c context.Context, res *http.Response) error
 
-	var req *http.Request
-	req, r.resp.err = http.NewRequest(r.req.method, r.req.url, r.req.body)
-	if r.resp.err != nil {
-		return &r
+// EncodeRequestFunc is request encode func.
+type EncodeRequestFunc func(c context.Context, contentType string, in interface{}) (body []byte, err error)
+
+// DecodeResponseFunc is response decode func.
+type DecodeResponseFunc func(c context.Context, res *http.Response, out interface{}) (body []byte, err error)
+
+// DefaultRequestEncoder is an HTTP request encoder.
+func DefaultRequestEncoder(c context.Context, contentType string, in interface{}) (body []byte, err error) {
+	subContentType := ContentSubtype(contentType)
+	if subContentType == "" {
+		subContentType = DefaultContentType
 	}
-	req.Header = r.req.header
-
-	// request
-	client := &http.Client{Timeout: r.req.timeLimit}
-	start := time.Now()
-	r.resp.httpResp, r.resp.err = client.Do(req)
-	r.resp.cost = time.Now().Sub(start)
-
-	defer func() {
-		var respCode int
-		if r.resp.err == nil &&
-			r.resp.httpResp != nil &&
-			r.resp.httpResp.Body != nil {
-
-			r.resp.body, r.resp.err = ioutil.ReadAll(r.resp.httpResp.Body)
-			respCode = r.resp.httpResp.StatusCode
-			r.resp.httpResp.Body.Close()
-		}
-
-		c = header.AppendToContext(c,
-			"url", r.req.url,
-			"cost", r.resp.cost.String(),
-			"limit", r.req.timeLimit.String(),
-			"httpcode", strconv.Itoa(respCode),
-		)
-
-		// cut response
-		responseStr := string(r.resp.body)
-		if r.env == transport.EnvProd && utf8.RuneCountInString(responseStr) > r.req.responseMaxLength {
-			responseStr = string([]rune(responseStr)[:r.req.responseMaxLength]) + "..."
-		}
-
-		msg := fmt.Sprintf("[code:%d] [limit:%s] [cost:%s] [%s] [rst:%s]",
-			respCode,
-			r.req.timeLimit.String(),
-			r.resp.cost.String(),
-			r.fmtCurl(),
-			responseStr,
-		)
-
-		if r.resp.err != nil {
-			r.logger.Error(c, fmt.Sprintf("[err:%s] %s", r.resp.err.Error(), msg))
-			return
-		}
-
-		r.logger.Info(c, msg)
-
-		// body reader重置
-		if r.req.body.Size() > 0 {
-			r.req.body.Seek(0, io.SeekStart)
-		}
-	}()
-
-	return &r
+	codec := encoding.GetCodec(subContentType)
+	return codec.Marshal(in)
 }
 
-func (r Client) Cookie(c context.Context) (cookies []*http.Cookie) {
-	cookies = r.resp.httpResp.Cookies()
-
-	c = header.AppendToContext(c,
-		"url", r.req.url,
-		"cost", r.resp.cost.String(),
-		"limit", r.req.timeLimit.String(),
-		"httpcode", strconv.Itoa(r.resp.httpResp.StatusCode),
-	)
-
-	r.logger.Info(c, fmt.Sprintf("[code:%d] [limit:%s] [cost:%s] [%s] [cookie:%+v]",
-		r.resp.httpResp.StatusCode,
-		r.req.timeLimit.String(),
-		r.resp.cost.String(),
-		r.fmtCurl(),
-		cookies,
-	))
-
-	return
-}
-
-func (r Client) Body(c context.Context) (body []byte, err error) {
-	body = r.resp.body
-	err = r.resp.err
-	return
-}
-
-func (r Client) fmtCurl() string {
-	var b strings.Builder
-	b.WriteString("curl -X '")
-	b.WriteString(r.req.method)
-	b.WriteString("' '")
-	b.WriteString(r.req.url)
-	b.WriteString("'")
-	b.WriteString(r.req.headerCurl)
-	b.WriteString(r.req.bodyCurl)
-	return b.String()
-}
-
-func (r Client) Env() transport.Env {
-	return r.env
-}
-
-func (r Client) Get(key string) (value string) {
-	if v, ok := r.req.mapValue.Load(key); ok {
-		if s, ok := v.(string); ok {
-			value = s
-		}
+// DefaultResponseDecoder is an HTTP response decoder.
+func DefaultResponseDecoder(c context.Context, res *http.Response, v interface{}) (body []byte, err error) {
+	subContentType := ContentSubtype(res.Header.Get("Content-Type"))
+	if subContentType == "" {
+		subContentType = DefaultContentType
 	}
+	codec := encoding.GetCodec(subContentType)
+	if codec == nil {
+		err = errors.New("wrong Content-Type from header")
+		return
+	}
+
+	defer res.Body.Close()
+	if body, err = io.ReadAll(res.Body); err != nil {
+		return
+	}
+	err = codec.Unmarshal(body, v)
 	return
+}
+
+// DefaultErrorDecoder is an HTTP error decoder.
+func DefaultErrorDecoder(c context.Context, resp *http.Response) (err error) {
+	if resp == nil {
+		return errors.New("nil *http.Response")
+	}
+	if resp.StatusCode >= 200 && resp.StatusCode <= 299 {
+		return
+	}
+	return errors.New(resp.Status)
 }

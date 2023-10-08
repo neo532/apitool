@@ -10,13 +10,14 @@ import (
 	"context"
 
 	"github.com/neo532/apitool/transport/http/xhttp"
+	"github.com/neo532/apitool/transport/http/xhttp/client"
 )
 
 type Wrapper struct {
-	clt xhttp.Client
+	clt client.Client
 }
 
-func NewWrapper(clt xhttp.Client) *Wrapper {
+func NewWrapper(clt client.Client) *Wrapper {
 	return &Wrapper{
 		clt: clt,
 	}
@@ -24,10 +25,10 @@ func NewWrapper(clt xhttp.Client) *Wrapper {
 
 func (w *Wrapper) Call(
 	c context.Context,
-	domain string,
+	req interface{},
+	reply interface{},
 	opts ...xhttp.Opt,
-) (clt *xhttp.Client) {
-
-	clt = w.clt.Do(c, opts...)
+) (err error) {
+	err = xhttp.New(w.clt, opts...).Do(c, req, reply)
 	return
 }

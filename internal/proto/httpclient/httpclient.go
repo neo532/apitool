@@ -167,12 +167,10 @@ func packageHttpParameter2Method(method *Method, opts []*proto.Option, cs *Servi
 	for _, o := range opts {
 		for _, c := range o.AggregatedConstants {
 			switch c.Name {
-			case "contentTypeRequest":
-				method.ContentTypeRequest = c.Literal.Source
+			case "contentType":
+				method.ContentType = c.Literal.Source
 			case "contentTypeResponse":
 				method.ContentTypeResponse = c.Literal.Source
-			case "function":
-				method.Function = c.Literal.Source
 			case "retryTimes":
 				method.RetryTimes = c.Literal.Source
 			case "retryDuration":
@@ -184,13 +182,11 @@ func packageHttpParameter2Method(method *Method, opts []*proto.Option, cs *Servi
 			case "timeLimit":
 				cs.HasImportTime = "true"
 				method.TimeLimit = c.Literal.Source
-			case "get", "post", "put", "delete", "head":
+			case "get", "post", "put", "delete", "head", "patch", "options", "trace", "connect":
 				method.Method = strings.ToUpper(c.Name)
 				method.Path = c.Literal.Source
 			case "respTpl":
 				method.RespTpl = c.Literal.Source
-			case "reqOmitEmpty":
-				method.ReqOmitEmpty = c.Literal.Source
 			}
 		}
 	}

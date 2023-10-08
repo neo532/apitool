@@ -2,19 +2,22 @@ package xml
 
 import (
 	"encoding/xml"
+
+	"github.com/neo532/apitool/encoding"
 )
+
+func init() {
+	encoding.RegisterCodec(NewCodec())
+}
 
 type opt func(cc *Codec)
 
 // Codec is a Codec implementation with xml.
 type Codec struct {
-	name string
 }
 
 func NewCodec(opts ...opt) (cc *Codec) {
-	cc = &Codec{
-		name: Name,
-	}
+	cc = &Codec{}
 	for _, o := range opts {
 		o(cc)
 	}
@@ -30,5 +33,5 @@ func (cc *Codec) Unmarshal(data []byte, v interface{}) error {
 }
 
 func (cc *Codec) Name() string {
-	return cc.name
+	return "xml"
 }

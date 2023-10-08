@@ -4,9 +4,6 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-// Name is the name registered for the json codec.
-const Name = "json"
-
 var (
 	// MarshalOptions is a configurable JSON format marshaller.
 	MarshalOptions = protojson.MarshalOptions{

@@ -10,6 +10,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/http"
 	"net/url"
 	"reflect"
 	"strconv"
@@ -131,4 +132,16 @@ func AppendUrlByKV(url, k, v string) (s string) {
 		url += FORM_AND + k + FORM_ASSIGN + v
 	}
 	return url
+}
+
+func HasBody(method string) (b bool) {
+	switch method {
+	case http.MethodGet, http.MethodHead, http.MethodDelete:
+		return
+	case http.MethodConnect, http.MethodOptions, http.MethodTrace:
+		return
+	case http.MethodPost, http.MethodPut, http.MethodPatch:
+		return true
+	}
+	return true
 }

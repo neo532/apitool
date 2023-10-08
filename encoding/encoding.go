@@ -10,3 +10,19 @@ type Codec interface {
 	// static; the result cannot change between calls.
 	Name() string
 }
+
+var registeredCodecs = make(map[string]Codec)
+
+func RegisterCodec(codec Codec) {
+	if codec == nil {
+		panic("cannot register a nil Codec")
+	}
+	if codec.Name() == "" {
+		panic("cannot register Codec with empty string result for Name()")
+	}
+	registeredCodecs[codec.Name()] = codec
+}
+
+func GetCodec(contentSubtype string) Codec {
+	return registeredCodecs[contentSubtype]
+}
