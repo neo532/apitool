@@ -87,6 +87,13 @@ func (r Client) Get(key string) (value string) {
 	return
 }
 
+func (r Client) AddMiddleware(mds ...middleware.Middleware) Client {
+	for _, mw := range mds {
+		r.middlewares = append(r.middlewares, mw)
+	}
+	return r
+}
+
 func (r Client) Middlewares() (ms []middleware.Middleware) {
 	return r.middlewares
 }

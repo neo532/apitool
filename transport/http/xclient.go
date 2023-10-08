@@ -6,30 +6,30 @@ package http
  * @date 2023-09-12
  */
 import (
-	"github.com/neo532/apitool/encoding"
-	"github.com/neo532/apitool/encoding/json"
-	"github.com/neo532/apitool/encoding/xml"
+	"github.com/neo532/apitool/transport/http/xhttp/client"
+	"github.com/neo532/apitool/transport/http/xhttp/middleware"
 )
 
 type XClient struct {
-	Domain string
-	Codecs map[string]encoding.Codec
+	Domain      string
+	Middlewares []middleware.Middleware
+	Client      client.Client
 }
 
-func NewXClient() (xc *XClient) {
+func NewXClient(clt client.Client) (xc *XClient) {
 	return &XClient{
-		Codecs: map[string]encoding.Codec{
-			"json": json.NewCodec(),
-			"xml":  xml.NewCodec(),
-		},
+		Client: clt,
 	}
 }
 
-func (xc *XClient) WithDomain(domain string) *XClient {
+func (xc *XClient) WithDomain(domain string) {
 	xc.Domain = domain
-	return xc
+	return
 }
 
-func (xc *XClient) Codec(encoding string) encoding.Codec {
-	return xc.Codecs[encoding]
+func (xc *XClient) WithMiddleware(mds ...middleware.Middleware) {
+	for _, mw := range mds {
+		xc.Client = xc.Client.AddMiddleware(mw)
+	}
+	return
 }

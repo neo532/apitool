@@ -8,6 +8,13 @@ package http
 
 import (
 	"strings"
+
+	// init encoding
+	_ "github.com/neo532/apitool/encoding/json"
+	_ "github.com/neo532/apitool/encoding/xml"
+	//_ "github.com/neo532/apitool/encoding/form"
+	//_ "github.com/neo532/apitool/encoding/proto"
+	//_ "github.com/neo532/apitool/encoding/yaml"
 )
 
 func GetFromCookieString(cookies string, fields ...string) (values []string) {

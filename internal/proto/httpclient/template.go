@@ -50,13 +50,11 @@ import (
 
 type {{ .Service }}XHttpClient struct {
 	*kithttp.XClient
-	wrapper *kithttp.Wrapper
 }
 
 func New{{ .Service }}XHttpClient(clt client.Client) (xclt *{{ .Service }}XHttpClient) {
 	xclt = &{{ .Service }}XHttpClient{
-		XClient: kithttp.NewXClient(),
-		wrapper: kithttp.NewWrapper(clt),
+		XClient: kithttp.NewXClient(clt),
 	}
 
 	{{- if ne .DomainsLen 0}}
@@ -94,7 +92,8 @@ func (s *{{ .Service }}XHttpClient) {{ .Name }}(ctx context.Context, req {{ if e
 	{{ if eq .RespTpl "" }} resp = &{{ .Reply }}{}
 	{{ else }}
 	resp = &{{ .Reply }}Wraper{}{{ end }}
-	err = s.wrapper.Call(ctx, req, resp, opts...)
+
+	err = xhttp.New(s.Client, opts...).Do(ctx, req, resp)
 	return 
 }
 
