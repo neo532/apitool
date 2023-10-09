@@ -11,9 +11,8 @@ import (
 )
 
 type XClient struct {
-	Domain      string
-	Middlewares []middleware.Middleware
-	Client      client.Client
+	Domain string
+	Client client.Client
 }
 
 func NewXClient(clt client.Client) (xc *XClient) {
