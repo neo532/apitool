@@ -187,6 +187,12 @@ func packageHttpParameter2Method(method *Method, opts []*proto.Option, cs *Servi
 				method.Path = c.Literal.Source
 			case "respTpl":
 				method.RespTpl = c.Literal.Source
+			case "requestEncoder":
+				method.RequestEncoder = c.Literal.Source
+			case "responseDecoder":
+				method.ResponseDecoder = c.Literal.Source
+			case "errorDecoder":
+				method.ErrorDecoder = c.Literal.Source
 			}
 		}
 	}

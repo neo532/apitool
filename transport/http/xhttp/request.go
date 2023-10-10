@@ -87,6 +87,21 @@ func WithRetryMaxDuration(d time.Duration) Opt {
 		o.retryMaxDuration = d
 	}
 }
+func WithRequestEncoder(encoder EncodeRequestFunc) Opt {
+	return func(o *Request) {
+		o.encoder = encoder
+	}
+}
+func WithResponseDecoder(decoder DecodeResponseFunc) Opt {
+	return func(o *Request) {
+		o.decoder = decoder
+	}
+}
+func WithErrorDecoder(errorDecoder DecodeErrorFunc) Opt {
+	return func(o *Request) {
+		o.errorDecoder = errorDecoder
+	}
+}
 
 // ========== /Opt ==========
 

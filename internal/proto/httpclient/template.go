@@ -83,6 +83,9 @@ func (s *{{ .Service }}XHttpClient) {{ .Name }}(ctx context.Context, req {{ if e
 	{{ if ne .RetryMaxDuration "" }}opts = append(opts, xhttp.WithRetryMaxDuration({{ .RetryMaxDuration }}*time.Second)){{ end }} 
 	{{ if ne .ContentType "" }}opts = append(opts, xhttp.WithContentType({{ .ContentType }})){{ end }} 
 	{{ if ne .ContentTypeResponse "" }}opts = append(opts, xhttp.WithContentTypeResponse({{ .ContentTypeResponse }})){{ end }} 
+	{{ if ne .RequestEncoder "" }}opts = append(opts, xhttp.WithRequestEncoder({{ .RequestEncoder }})){{ end }} 
+	{{ if ne .ResponseDecoder "" }}opts = append(opts, xhttp.WithResponseDecoder({{ .ResponseDecoder }})){{ end }} 
+	{{ if ne .ErrorDecoder "" }}opts = append(opts, xhttp.WithErrorDecoder({{ .ErrorDecoder }})){{ end }} 
 	{{- if .HasQueryArgs }}
 	if ctx, err = xhttp.AppendUrlByStruct(ctx, req); err != nil {
 		return
@@ -194,6 +197,10 @@ type Method struct {
 	ContentType         string
 	ContentTypeResponse string
 	RespTpl             string
+
+	RequestEncoder  string
+	ResponseDecoder string
+	ErrorDecoder    string
 }
 
 func (s *Service) execute() ([]byte, error) {
