@@ -90,9 +90,9 @@ func (s *{{ .Service }}XHttpClient) {{ .Name }}(ctx context.Context, req {{ if e
 	if ctx, err = xhttp.AppendUrlByStruct(ctx, req); err != nil {
 		return
 	}
-	req = nil
+	req = &{{ .Request }}{}
 	{{ end }}
-	{{ if eq .RespTpl "" }} resp = &{{ .Reply }}{}
+	{{ if eq .RespTpl "" }}resp = {{ if eq .Reply $s1 }}&emptypb.Empty{}{{ else }}&{{ .Reply }}{}{{ end }}
 	{{ else }}
 	resp = &{{ .Reply }}Wraper{}{{ end }}
 
