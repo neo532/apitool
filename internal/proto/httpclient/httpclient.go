@@ -77,6 +77,7 @@ func buildHttpClient(cmd *cobra.Command, filePath string) {
 			}
 		}),
 		proto.WithMessage(func(m *proto.Message) {
+			// exist messageName
 			if m.Position.Column == 1 {
 				pb.MessageNameMap[m.Name] = struct{}{}
 			}

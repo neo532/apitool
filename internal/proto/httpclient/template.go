@@ -9,15 +9,18 @@ import (
 )
 
 const (
-	empty = "google.protobuf.Empty"
+	empty      = "google.protobuf.Empty"
+	emptyName  = "Empty"
+	emptyValue = "emptypb.Empty"
+	wrapper    = "Wrapper"
 )
 
 var RespTplMap = map[string]string{
 	"default": `
-message {{ .Reply }}Wraper {
+message {{ .ReplyName }} {
     int32 code = 1;
     string message = 2;
-    {{ .Reply }} data = 3;
+    {{ .ReplyType }} data = 3;
 }`,
 }
 
@@ -72,7 +75,7 @@ func New{{ .Service }}XHttpClient(clt client.Client) (xclt *{{ .Service }}XHttpC
 {{- $s1 := "google.protobuf.Empty" }}
 {{ range .Methods }}
 {{- if eq .Type 1 }}
-func (s *{{ .Service }}XHttpClient) {{ .Name }}(ctx context.Context, req {{ if eq .Request $s1 }}*emptypb.Empty {{ else }}*{{ .Request }}{{ end }}) (resp{{ if eq .Reply $s1 }} *emptypb.Empty{{ else if eq .RespTpl "" }} *{{ .Reply }}{{ else }} *{{ .Reply }}Wraper{{ end }}, err error) {
+func (s *{{ .Service }}XHttpClient) {{ .Name }}(ctx context.Context, req {{ if eq .Request $s1 }}*emptypb.Empty {{ else }}*{{ .Request }}{{ end }}) (resp {{- if eq .RespTpl "" }}{{ if eq .Reply $s1 }}*emptypb.Empty{{ else }}*{{ .Reply }}{{ end }}{{ else }} *{{ .WrapperName }}{{ end }}, err error) {
 
 	opts := make([]xhttp.Opt, 0, 6)
 	opts = append(opts, xhttp.WithUrl(s.Domain+"{{ .Path }}"))
@@ -94,7 +97,7 @@ func (s *{{ .Service }}XHttpClient) {{ .Name }}(ctx context.Context, req {{ if e
 	{{ end }}
 	{{ if eq .RespTpl "" }}resp = {{ if eq .Reply $s1 }}&emptypb.Empty{}{{ else }}&{{ .Reply }}{}{{ end }}
 	{{ else }}
-	resp = &{{ .Reply }}Wraper{}{{ end }}
+	resp = &{{ .WrapperName }}{}{{ end }}
 
 	err = xhttp.New(s.Client, opts...).Do(ctx, req, resp)
 	return 
@@ -197,6 +200,7 @@ type Method struct {
 	ContentType         string
 	ContentTypeResponse string
 	RespTpl             string
+	WrapperName         string
 
 	RequestEncoder  string
 	ResponseDecoder string
@@ -225,6 +229,8 @@ func (s *Service) execute() ([]byte, error) {
 			s.UseContext = true
 		}
 		method.MService = mService
+
+		method.WrapperName = FmtWraperName(method)
 	}
 
 	s.ServiceLower = strings.ToLower(s.Service)

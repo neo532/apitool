@@ -14,20 +14,28 @@ type Proto struct {
 	FilePath       string
 	PackageName    string
 	Package        string
-	MessageNameMap map[string]struct{}
+	MessageNameMap map[string]struct{} // exists message name
 	Services       []*Service
 	WraperMap      map[string]struct{}
 	CacheTpl       map[string]string
 }
 
 // 是否已经存在
-func (pb *Proto) FmtWraperName(method *Method) (reply string) {
-	return method.Reply + "Wraper"
+func FmtWraperName(method *Method) (reply string) {
+	reply = method.Reply
+	if method.RespTpl == "" {
+		return
+	}
+	reply = strings.ReplaceAll(reply, wrapper, "")
+	if reply == empty {
+		return emptyName + wrapper
+	}
+	return reply + wrapper
 }
 
 func (pb *Proto) IsNeedWraper(method *Method) (b bool) {
-	if method.RespTpl != "" && method.Reply != empty {
-		if _, ok := pb.MessageNameMap[pb.FmtWraperName(method)]; !ok {
+	if method.RespTpl != "" {
+		if _, ok := pb.MessageNameMap[FmtWraperName(method)]; !ok {
 			return true
 		}
 	}
@@ -38,6 +46,7 @@ func (pb *Proto) GetTpl(method *Method) (tpl string, err error) {
 	if method.RespTpl == "" {
 		return
 	}
+
 	var ok bool
 	filePath := filepath.Dir(pb.FilePath) + "/" + method.RespTpl + ".tpl"
 	if tpl, ok = pb.CacheTpl[filePath]; ok {
@@ -69,7 +78,10 @@ func (pb *Proto) NewWraper(method *Method, tpl string) {
 	if pb.WraperMap == nil {
 		pb.WraperMap = make(map[string]struct{}, 2)
 	}
-	pb.WraperMap[strings.ReplaceAll(tpl, "{{ .Reply }}", method.Reply)] = struct{}{}
+	pb.WraperMap[strings.NewReplacer(
+		"{{ .ReplyName }}", FmtWraperName(method),
+		"{{ .ReplyType }}", method.Reply,
+	).Replace(tpl)] = struct{}{}
 	return
 }
 
