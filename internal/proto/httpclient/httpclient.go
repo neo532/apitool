@@ -152,7 +152,7 @@ func buildHttpClient(cmd *cobra.Command, filePath string) {
 				fmt.Fprintln(os.Stderr, fmt.Sprintf("BuildHttpClient %s has error[%+v]", pb.FilePath, err))
 				return
 			}
-			if pb.IsNeedWraper(m) == true {
+			if pb.IsNeedAddWraper(m) == true {
 				pb.NewWraper(m, tpl)
 			}
 		}
