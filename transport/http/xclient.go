@@ -6,24 +6,24 @@ package http
  * @date 2023-09-12
  */
 import (
+	"github.com/neo532/apitool/transport/http/xhttp"
 	"github.com/neo532/apitool/transport/http/xhttp/client"
 	"github.com/neo532/apitool/transport/http/xhttp/middleware"
 )
 
 type XClient struct {
-	Domain string
 	Client client.Client
+
+	Domain          string
+	RequestEncoder  xhttp.EncodeRequestFunc
+	ResponseDecoder xhttp.DecodeResponseFunc
+	ErrorDecoder    xhttp.DecodeErrorFunc
 }
 
 func NewXClient(clt client.Client) (xc *XClient) {
 	return &XClient{
 		Client: clt,
 	}
-}
-
-func (xc *XClient) WithDomain(domain string) {
-	xc.Domain = domain
-	return
 }
 
 func (xc *XClient) WithMiddleware(mds ...middleware.Middleware) {

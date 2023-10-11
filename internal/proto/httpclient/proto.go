@@ -20,7 +20,6 @@ type Proto struct {
 	CacheTpl       map[string]string
 }
 
-// 是否已经存在
 func FmtWraperName(method *Method) (reply string) {
 	reply = method.Reply
 	if method.RespTpl == "" {
@@ -33,7 +32,14 @@ func FmtWraperName(method *Method) (reply string) {
 	return reply + wrapper
 }
 
-func (pb *Proto) IsNeedWraper(method *Method) (b bool) {
+func IsAddWraper(wrapperName string) (b bool) {
+	if strings.TrimSuffix(wrapperName, wrapper) != wrapperName {
+		return true
+	}
+	return
+}
+
+func (pb *Proto) IsNeedAddWraper(method *Method) (b bool) {
 	if method.RespTpl != "" {
 		if _, ok := pb.MessageNameMap[FmtWraperName(method)]; !ok {
 			return true

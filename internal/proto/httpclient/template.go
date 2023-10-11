@@ -86,9 +86,21 @@ func (s *{{ .Service }}XHttpClient) {{ .Name }}(ctx context.Context, req {{ if e
 	{{ if ne .RetryMaxDuration "" }}opts = append(opts, xhttp.WithRetryMaxDuration({{ .RetryMaxDuration }}*time.Second)){{ end }} 
 	{{ if ne .ContentType "" }}opts = append(opts, xhttp.WithContentType({{ .ContentType }})){{ end }} 
 	{{ if ne .ContentTypeResponse "" }}opts = append(opts, xhttp.WithContentTypeResponse({{ .ContentTypeResponse }})){{ end }} 
-	{{ if ne .RequestEncoder "" }}opts = append(opts, xhttp.WithRequestEncoder({{ .RequestEncoder }})){{ end }} 
-	{{ if ne .ResponseDecoder "" }}opts = append(opts, xhttp.WithResponseDecoder({{ .ResponseDecoder }})){{ end }} 
-	{{ if ne .ErrorDecoder "" }}opts = append(opts, xhttp.WithErrorDecoder({{ .ErrorDecoder }})){{ end }} 
+	{{ if ne .RequestEncoder "" }}opts = append(opts, xhttp.WithRequestEncoder({{ .RequestEncoder }})){{ else }}
+	if s.RequestEncoder != nil {
+		opts = append(opts, xhttp.WithRequestEncoder(s.RequestEncoder))
+	}
+	{{ end }} 
+	{{ if ne .ResponseDecoder "" }}opts = append(opts, xhttp.WithResponseDecoder({{ .ResponseDecoder }})){{ else }}
+	if s.ResponseDecoder != nil {
+		opts = append(opts, xhttp.WithResponseDecoder(s.ResponseDecoder))
+	}
+	{{ end }} 
+	{{ if ne .ErrorDecoder "" }}opts = append(opts, xhttp.WithErrorDecoder({{ .ErrorDecoder }})){{ else }}
+	if s.ErrorDecoder != nil {
+		opts = append(opts, xhttp.WithErrorDecoder(s.ErrorDecoder))
+	}
+	{{ end }} 
 	{{- if .HasQueryArgs }}
 	if ctx, err = xhttp.AppendUrlByStruct(ctx, req); err != nil {
 		return
@@ -218,7 +230,10 @@ func (s *Service) execute() ([]byte, error) {
 			method.HasQueryArgs = true
 		}
 
-		if (method.Type == unaryType && (method.Request == empty || method.Reply == empty)) ||
+		method.WrapperName = FmtWraperName(method)
+
+		if (method.Type == unaryType &&
+			(method.Request == empty || method.Reply == empty) && IsAddWraper(method.WrapperName)) ||
 			(method.Type == returnsStreamsType && method.Request == empty) {
 			s.GoogleEmpty = true
 		}
@@ -230,7 +245,6 @@ func (s *Service) execute() ([]byte, error) {
 		}
 		method.MService = mService
 
-		method.WrapperName = FmtWraperName(method)
 	}
 
 	s.ServiceLower = strings.ToLower(s.Service)
