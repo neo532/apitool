@@ -233,7 +233,7 @@ func (s *Service) execute() ([]byte, error) {
 		method.WrapperName = FmtWraperName(method)
 
 		if (method.Type == unaryType &&
-			(method.Request == empty || method.Reply == empty) && IsAddWraper(method.WrapperName)) ||
+			(method.Request == empty || method.Reply == empty) && !IsAddWraper(method.WrapperName)) ||
 			(method.Type == returnsStreamsType && method.Request == empty) {
 			s.GoogleEmpty = true
 		}
