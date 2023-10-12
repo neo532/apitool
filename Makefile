@@ -1,6 +1,8 @@
 GOPATH:=$(shell go env GOPATH)
 API_PROTO_FILES=$(shell find api -name *.api.proto)
 ERR_PROTO_ERRORS=$(shell find api -name '*.err.proto')
+PATH:=$(PATH):$(GOPATH)/bin
+SHELL=env PATH=$(PATH) $(SHELL)
 
 .PHONY: init
 # init env
