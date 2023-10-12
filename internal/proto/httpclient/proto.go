@@ -20,16 +20,20 @@ type Proto struct {
 	CacheTpl       map[string]string
 }
 
-func FmtWraperName(method *Method) (reply string) {
-	reply = method.Reply
+func FmtWraperName(method *Method) (replyType, replyName, replyPb string) {
+	reply := method.Reply
+	replyType, replyName, replyPb = FmtNameType(reply)
 	if method.RespTpl == "" {
 		return
 	}
+
 	reply = strings.ReplaceAll(reply, wrapper, "")
-	if reply == empty {
-		return emptyName + wrapper
-	}
-	return reply + wrapper
+
+	replyType, replyName, replyPb = FmtNameType(reply)
+
+	replyName += wrapper
+	replyType = replyName
+	return
 }
 
 func IsAddWraper(wrapperName string) (b bool) {
@@ -41,7 +45,8 @@ func IsAddWraper(wrapperName string) (b bool) {
 
 func (pb *Proto) IsNeedAddWraper(method *Method) (b bool) {
 	if method.RespTpl != "" {
-		if _, ok := pb.MessageNameMap[FmtWraperName(method)]; !ok {
+		_, replyName, _ := FmtWraperName(method)
+		if _, ok := pb.MessageNameMap[replyName]; !ok {
 			return true
 		}
 	}
@@ -75,7 +80,6 @@ func (pb *Proto) GetTpl(method *Method) (tpl string, err error) {
 }
 
 func (pb *Proto) NewWraper(method *Method, tpl string) {
-	// TODO 将返回值的data层也抹掉，code错误放到err里面，这样grpc也可以完全兼容
 	tpl = `
 // ========== httpClient append ==========
 ` + tpl + `
@@ -84,9 +88,10 @@ func (pb *Proto) NewWraper(method *Method, tpl string) {
 	if pb.WraperMap == nil {
 		pb.WraperMap = make(map[string]struct{}, 2)
 	}
+	_, rName, rPb := FmtWraperName(method)
 	pb.WraperMap[strings.NewReplacer(
-		"{{ .ReplyName }}", FmtWraperName(method),
-		"{{ .ReplyType }}", method.Reply,
+		"{{ .ReplyName }}", rName,
+		"{{ .ReplyType }}", rPb,
 	).Replace(tpl)] = struct{}{}
 	return
 }
