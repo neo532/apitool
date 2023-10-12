@@ -19,6 +19,7 @@ type Client struct {
 	mapValue          sync.Map
 	middlewares       []middleware.Middleware
 	responseMaxLength int
+	retryTimes        int
 }
 
 // ========== Opt ==========
@@ -50,6 +51,11 @@ func WithMiddleware(ms ...middleware.Middleware) Opt {
 		o.middlewares = append(o.middlewares, ms...)
 	}
 }
+func WithRetryTimes(times int) Opt {
+	return func(o *Client) {
+		o.retryTimes = times
+	}
+}
 
 // ========== /Opt ==========
 
@@ -59,6 +65,7 @@ func New(opts ...Opt) (client Client) {
 		responseMaxLength: 512,
 		logger:            &transport.LoggerDefault{},
 		middlewares:       make([]middleware.Middleware, 0, 1),
+		retryTimes:        1,
 	}
 	for _, o := range opts {
 		o(&client)
@@ -76,6 +83,9 @@ func (r Client) Logger() transport.Logger {
 
 func (r Client) ResponseMaxLength() int {
 	return r.responseMaxLength
+}
+func (r Client) RetryTime() int {
+	return r.retryTimes
 }
 
 func (r Client) Get(key string) (value string) {
