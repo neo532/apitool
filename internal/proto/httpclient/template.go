@@ -198,11 +198,14 @@ func (s *Service) execute() ([]byte, error) {
 		switch method.Type {
 		case unaryType:
 			s.UseContext = true
-			if method.Request == anyPb || method.Reply == anyPb {
+			hasWrapper := IsAddWraper(method.ReplyName)
+			if method.Request == anyPb ||
+				(!hasWrapper && method.Reply == anyPb) {
 				s.AnyHas = true
 				break
 			}
-			if method.Request == emptyPb || method.Reply == emptyPb {
+			if method.Request == emptyPb ||
+				(!hasWrapper && method.Reply == emptyPb) {
 				s.EmptyHas = true
 				break
 			}
