@@ -26,7 +26,7 @@ const (
 )
 
 var (
-	TagName = "form"
+	TagName = "json"
 	// ErrNotSupportType is a type of error that means invaild type.
 	ErrNotSupportType error = errors.New("Invaild type,within string,int,int64,uint64,float64,[]string,[]int,[]int64,[]uint64,[]float64!")
 	// ErrMustBeStruct is a type of error that means the type must be a struct.
@@ -122,10 +122,11 @@ func AppendUrlByStruct(c context.Context, param interface{}) (ctx context.Contex
 }
 
 func AppendUrlByKV(url, k, v string) (s string) {
+	pk := "{" + k + "}"
 	switch {
 	case k == "":
-	case string(k[0]) == "{":
-		url = strings.Replace(url, k, v, -1)
+	case strings.Index(url, pk) > -1:
+		url = strings.Replace(url, pk, v, -1)
 	case strings.Index(url, "?") == -1:
 		url += "?" + k + FORM_ASSIGN + v
 	default:
