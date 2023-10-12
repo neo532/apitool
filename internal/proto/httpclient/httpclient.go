@@ -144,7 +144,7 @@ func buildHttpClient(cmd *cobra.Command, filePath string) {
 		}
 		fmt.Println(to)
 
-		// .proto 结尾的文件
+		// .proto suffix
 		for _, m := range s.Methods {
 
 			var tpl string
@@ -158,7 +158,7 @@ func buildHttpClient(cmd *cobra.Command, filePath string) {
 		}
 		pb.AppendWraper()
 
-		// 将追加的wraper重新生成PB
+		// let wraper append to file for PB generator
 		base.Run("apitool", "pbstruct", pb.FilePath)
 	}
 }

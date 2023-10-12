@@ -107,7 +107,7 @@ func WithErrorDecoder(errorDecoder DecodeErrorFunc) Opt {
 
 func New(clt client.Client, opts ...Opt) (req *Request) {
 	req = &Request{
-		retryTimes:       1,
+		retryTimes:       clt.RetryTime(),
 		retryDuration:    time.Microsecond,
 		retryMaxDuration: 20 * time.Microsecond,
 		timeLimit:        3 * time.Second,
