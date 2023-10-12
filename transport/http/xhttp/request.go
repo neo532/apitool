@@ -200,7 +200,7 @@ func (r *Request) log(c context.Context,
 	}
 
 	reqBodyS := string(reqBody)
-	if len(reqBodyS) != 0 {
+	if len(reqBodyS) != 0 && reqBodyS != "{}" {
 		reqBodyS = " -d '" + string(reqBodyS) + "'"
 	}
 	msg := fmt.Sprintf("[code:%d] [limit:%s] [cost:%s] [curl -X '%s' '%s'%s%s] [rst:%s]",
