@@ -9,10 +9,15 @@ import (
 )
 
 const (
-	empty      = "google.protobuf.Empty"
-	emptyName  = "Empty"
-	emptyValue = "emptypb.Empty"
-	wrapper    = "Wrapper"
+	emptyPb      = "google.protobuf.Empty"
+	emptyVarName = "Empty"
+	emptyType    = "emptypb.Empty"
+
+	anyPb      = "google.protobuf.Any"
+	anyVarName = "Any"
+	anyType    = "anypb.Any"
+
+	wrapper = "Wrapper"
 )
 
 var RespTplMap = map[string]string{
@@ -32,19 +37,15 @@ package {{ .PackageName }}
 
 import (
 	{{- if .UseContext }}
-	"context"
-	{{- end }}
+	"context"{{- end }}
 	{{- if .UseIO }}
-	"io"
-	{{- end }}
-	{{/* "encoding/json" */}}
-	//"net/http"
+	"io"{{- end }}
 	{{- if ne .HasImportTime "" }}
 	"time"{{- end }}
-
-	{{- if .GoogleEmpty }}
-	"google.golang.org/protobuf/types/known/emptypb"
-	{{- end }}
+	{{- if .EmptyHas }}
+	"google.golang.org/protobuf/types/known/emptypb"{{- end }}
+	{{- if .AnyHas }}
+	"google.golang.org/protobuf/types/known/anypb"{{- end }}
 
 	kithttp "github.com/neo532/apitool/transport/http"
 	"github.com/neo532/apitool/transport/http/xhttp"
@@ -72,11 +73,9 @@ func New{{ .Service }}XHttpClient(clt client.Client) (xclt *{{ .Service }}XHttpC
 	return
 }
 
-{{- $s1 := "google.protobuf.Empty" }}
 {{ range .Methods }}
 {{- if eq .Type 1 }}
-func (s *{{ .Service }}XHttpClient) {{ .Name }}(ctx context.Context, req {{ if eq .Request $s1 }}*emptypb.Empty {{ else }}*{{ .Request }}{{ end }}) (resp {{- if eq .RespTpl "" }}{{ if eq .Reply $s1 }}*emptypb.Empty{{ else }}*{{ .Reply }}{{ end }}{{ else }} *{{ .WrapperName }}{{ end }}, err error) {
-
+func (s *{{ .Service }}XHttpClient) {{ .Name }}(ctx context.Context, req *{{ .RequestType }}) (resp *{{ .ReplyType }}, err error) {
 	opts := make([]xhttp.Opt, 0, 6)
 	opts = append(opts, xhttp.WithUrl(s.Domain+"{{ .Path }}"))
 	opts = append(opts, xhttp.WithMethod("{{ .Method }}"))
@@ -105,58 +104,12 @@ func (s *{{ .Service }}XHttpClient) {{ .Name }}(ctx context.Context, req {{ if e
 	if ctx, err = xhttp.AppendUrlByStruct(ctx, req); err != nil {
 		return
 	}
-	req = &{{ .Request }}{}
+	req = &{{ .RequestName }}{}
 	{{ end }}
-	{{ if eq .RespTpl "" }}resp = {{ if eq .Reply $s1 }}&emptypb.Empty{}{{ else }}&{{ .Reply }}{}{{ end }}
-	{{ else }}
-	resp = &{{ .WrapperName }}{}{{ end }}
-
+	resp = &{{ .ReplyName }}{}
 	err = xhttp.New(s.Client, opts...).Do(ctx, req, resp)
 	return 
 }
-
-{{- else if eq .Type 2 }}
-func (s *{{ .Service }}XHttpClient) {{ .Name }}(conn pb.{{ .Service }}_{{ .Name }}Client) error {
-	for {
-		req, err := conn.Recv()
-		if err == io.EOF {
-			return nil
-		}
-		if err != nil {
-			return err
-		}
-		
-		err = conn.Send(&pb.{{ .Reply }}{})
-		if err != nil {
-			return err
-		}
-	}
-}
-
-{{- else if eq .Type 3 }}
-func (s *{{ .Service }}XHttpClient) {{ .Name }}(conn pb.{{ .Service }}_{{ .Name }}Client) error {
-	for {
-		req, err := conn.Recv()
-		if err == io.EOF {
-			return conn.SendAndClose(&pb.{{ .Reply }}{})
-		}
-		if err != nil {
-			return err
-		}
-	}
-}
-
-{{- else if eq .Type 4 }}
-func (s *{{ .Service }}XHttpClient) {{ .Name }}(req {{ if eq .Request $s1 }}*emptypb.Empty
-{{ else }}*pb.{{ .Request }}{{ end }}, conn pb.{{ .Service }}_{{ .Name }}Client) error {
-	for {
-		err := conn.Send(&pb.{{ .Reply }}{})
-		if err != nil {
-			return err
-		}
-	}
-}
-
 {{- end }}
 {{- end }}
 `
@@ -172,11 +125,14 @@ const (
 
 // Service is a proto service.
 type Service struct {
-	Package       string
-	PackageName   string
-	Service       string
-	Methods       []*Method
-	GoogleEmpty   bool
+	Package     string
+	PackageName string
+	Service     string
+	Methods     []*Method
+
+	EmptyHas bool
+	AnyHas   bool
+
 	Domains       map[string]string
 	DomainsLen    int
 	TargetDir     string
@@ -194,8 +150,14 @@ type Method struct {
 	Service  string
 	MService string
 	Name     string
-	Request  string
-	Reply    string
+
+	Request string
+	Reply   string
+
+	RequestName string
+	RequestType string
+	ReplyName   string
+	ReplyType   string
 
 	HasQueryArgs bool
 
@@ -212,11 +174,20 @@ type Method struct {
 	ContentType         string
 	ContentTypeResponse string
 	RespTpl             string
-	WrapperName         string
 
 	RequestEncoder  string
 	ResponseDecoder string
 	ErrorDecoder    string
+}
+
+func FmtNameType(i string) (t, n, pb string) {
+	if i == emptyPb {
+		return emptyType, emptyVarName, emptyPb
+	}
+	if i == anyPb {
+		return anyType, anyVarName, anyPb
+	}
+	return i, i, i
 }
 
 func (s *Service) execute() ([]byte, error) {
@@ -230,21 +201,34 @@ func (s *Service) execute() ([]byte, error) {
 			method.HasQueryArgs = true
 		}
 
-		method.WrapperName = FmtWraperName(method)
+		method.RequestType, method.RequestName, _ = FmtNameType(method.Request)
+		method.ReplyType, method.ReplyName, _ = FmtWraperName(method)
 
-		if (method.Type == unaryType &&
-			(method.Request == empty || method.Reply == empty) && !IsAddWraper(method.WrapperName)) ||
-			(method.Type == returnsStreamsType && method.Request == empty) {
-			s.GoogleEmpty = true
-		}
-		if method.Type == twoWayStreamsType || method.Type == requestStreamsType {
-			s.UseIO = true
-		}
-		if method.Type == unaryType {
+		switch method.Type {
+		case unaryType:
 			s.UseContext = true
+			if method.Request == anyPb || method.Reply == anyPb {
+				s.AnyHas = true
+				break
+			}
+			if method.Request == emptyPb || method.Reply == emptyPb {
+				s.EmptyHas = true
+				break
+			}
+		case twoWayStreamsType, requestStreamsType:
+			s.UseIO = true
+		case returnsStreamsType:
+			if method.Request == anyPb {
+				s.AnyHas = true
+				break
+			}
+			if method.Request == emptyPb {
+				s.EmptyHas = true
+				break
+			}
 		}
-		method.MService = mService
 
+		method.MService = mService
 	}
 
 	s.ServiceLower = strings.ToLower(s.Service)
