@@ -127,10 +127,10 @@ func (r *Request) Do(c context.Context, req interface{}, reply interface{}) (err
 
 	h := func(c context.Context, req interface{}, reply interface{}) (err error) {
 
+		url := r.FmtQueryArgs(c, r.url)
+
 		var reqBody []byte
 		reqBody, err = r.encoder(c, r.contentType, req)
-
-		url := r.FmtQueryArgs(c, r.url)
 
 		var param *http.Request
 		param, err = http.NewRequest(r.method, url, bytes.NewReader(reqBody))
@@ -200,8 +200,10 @@ func (r *Request) log(c context.Context,
 	}
 
 	reqBodyS := string(reqBody)
-	if len(reqBodyS) != 0 {
+	if len(reqBodyS) != 0 && reqBodyS != "{}" {
 		reqBodyS = " -d '" + string(reqBodyS) + "'"
+	} else {
+		reqBodyS = ""
 	}
 	msg := fmt.Sprintf("[code:%d] [limit:%s] [cost:%s] [curl -X '%s' '%s'%s%s] [rst:%s]",
 		respCode,
