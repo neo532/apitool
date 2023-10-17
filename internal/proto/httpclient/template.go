@@ -95,9 +95,9 @@ func (s *{{ .Service }}XHttpClient) {{ .Name }}(ctx context.Context, req *{{ .Re
 	if ctx, err = xhttp.AppendUrlByStruct(ctx, req); err != nil {
 		return
 	}
-	req = &{{ .RequestName }}{}
+	req = &{{ .RequestType }}{}
 	{{ end }}
-	resp = &{{ .ReplyName }}{}
+	resp = &{{ .ReplyType }}{}
 	err = xhttp.New(s.Client, opts...).Do(ctx, req, resp)
 	return 
 }
