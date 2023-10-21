@@ -102,7 +102,8 @@ func (s *{{ .Service }}XHttpClient) {{ .Name }}(ctx context.Context, req *{{ .Re
 	err = xhttp.New(s.Client, opts...).Do(ctx, req, resp)
 	{{ else }}
 	rst := &{{ .ReplyTypeWrapper }}{}
-	if err = xhttp.New(s.Client, opts...).Do(ctx, req, rst); err == nil {
+	err = xhttp.New(s.Client, opts...).Do(ctx, req, rst)
+	if rst != nil {
 		resp = rst.{{ .RespTplDataName }}
 	}
 	{{ end }} 
@@ -207,27 +208,22 @@ func (s *Service) execute() ([]byte, error) {
 		switch method.Type {
 		case unaryType:
 			s.UseContext = true
-			hasWrapper := IsAddWraper(method.ReplyName)
 			if method.Request == anyPb ||
-				(!hasWrapper && method.Reply == anyPb) {
+				method.Reply == anyPb {
 				s.AnyHas = true
-				break
 			}
 			if method.Request == emptyPb ||
-				(!hasWrapper && method.Reply == emptyPb) {
+				method.Reply == emptyPb {
 				s.EmptyHas = true
-				break
 			}
 		case twoWayStreamsType, requestStreamsType:
 			s.UseIO = true
 		case returnsStreamsType:
 			if method.Request == anyPb {
 				s.AnyHas = true
-				break
 			}
 			if method.Request == emptyPb {
 				s.EmptyHas = true
-				break
 			}
 		}
 
