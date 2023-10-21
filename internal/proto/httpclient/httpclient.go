@@ -187,7 +187,12 @@ func packageHttpParameter2Method(method *Method, opts []*proto.Option, cs *Servi
 				method.Method = strings.ToUpper(c.Name)
 				method.Path = c.Literal.Source
 			case "respTpl":
-				method.RespTpl = c.Literal.Source
+				tmp := strings.SplitN(c.Literal.Source, ",", 2)
+				method.RespTpl = tmp[0]
+				method.RespTplDataName = "Data"
+				if len(tmp) >= 2 {
+					method.RespTplDataName = tmp[1]
+				}
 			case "requestEncoder":
 				method.RequestEncoder = c.Literal.Source
 			case "responseDecoder":

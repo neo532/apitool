@@ -20,16 +20,17 @@ type Proto struct {
 	CacheTpl       map[string]string
 }
 
-func FmtWraperName(method *Method) (replyType, replyName, replyPb string) {
+func FmtWraperName(method *Method) (replyTypeOri, replyType, replyName, replyPb string) {
 	reply := method.Reply
-	replyType, replyName, replyPb = FmtNameType(reply)
+	replyTypeOri, replyName, replyPb = FmtNameType(reply)
+	replyType = replyTypeOri
 	if method.RespTpl == "" {
 		return
 	}
 
 	reply = strings.ReplaceAll(reply, wrapper, "")
 
-	replyType, replyName, replyPb = FmtNameType(reply)
+	replyTypeOri, replyName, replyPb = FmtNameType(reply)
 
 	replyName += wrapper
 	replyType = replyName
@@ -45,7 +46,7 @@ func IsAddWraper(wrapperName string) (b bool) {
 
 func (pb *Proto) IsNeedAddWraper(method *Method) (b bool) {
 	if method.RespTpl != "" {
-		_, replyName, _ := FmtWraperName(method)
+		_, _, replyName, _ := FmtWraperName(method)
 		if _, ok := pb.MessageNameMap[replyName]; !ok {
 			return true
 		}
@@ -88,7 +89,7 @@ func (pb *Proto) NewWraper(method *Method, tpl string) {
 	if pb.WraperMap == nil {
 		pb.WraperMap = make(map[string]struct{}, 2)
 	}
-	_, rName, rPb := FmtWraperName(method)
+	_, _, rName, rPb := FmtWraperName(method)
 	pb.WraperMap[strings.NewReplacer(
 		"{{ .ReplyName }}", rName,
 		"{{ .ReplyType }}", rPb,

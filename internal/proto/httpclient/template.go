@@ -97,8 +97,15 @@ func (s *{{ .Service }}XHttpClient) {{ .Name }}(ctx context.Context, req *{{ .Re
 	}
 	req = &{{ .RequestType }}{}
 	{{ end }}
-	resp = &{{ .ReplyType }}{}
+	{{ if eq .RespTpl "" }}
+	resp = &{{ .ReplyTypeWrapper }}{}
 	err = xhttp.New(s.Client, opts...).Do(ctx, req, resp)
+	{{ else }}
+	rst := &{{ .ReplyTypeWrapper }}{}
+	if err = xhttp.New(s.Client, opts...).Do(ctx, req, rst); err == nil {
+		resp = rst.{{ .RespTplDataName }}
+	}
+	{{ end }} 
 	return 
 }
 {{- end }}
@@ -145,10 +152,11 @@ type Method struct {
 	Request string
 	Reply   string
 
-	RequestName string
-	RequestType string
-	ReplyName   string
-	ReplyType   string
+	RequestName      string
+	RequestType      string
+	ReplyName        string
+	ReplyType        string
+	ReplyTypeWrapper string
 
 	HasQueryArgs bool
 
@@ -165,6 +173,7 @@ type Method struct {
 	ContentType         string
 	ContentTypeResponse string
 	RespTpl             string
+	RespTplDataName     string
 
 	RequestEncoder  string
 	ResponseDecoder string
@@ -193,7 +202,7 @@ func (s *Service) execute() ([]byte, error) {
 		}
 
 		method.RequestType, method.RequestName, _ = FmtNameType(method.Request)
-		method.ReplyType, method.ReplyName, _ = FmtWraperName(method)
+		method.ReplyType, method.ReplyTypeWrapper, method.ReplyName, _ = FmtWraperName(method)
 
 		switch method.Type {
 		case unaryType:
