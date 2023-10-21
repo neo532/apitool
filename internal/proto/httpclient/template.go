@@ -207,27 +207,22 @@ func (s *Service) execute() ([]byte, error) {
 		switch method.Type {
 		case unaryType:
 			s.UseContext = true
-			hasWrapper := IsAddWraper(method.ReplyName)
 			if method.Request == anyPb ||
-				(!hasWrapper && method.Reply == anyPb) {
+				method.Reply == anyPb {
 				s.AnyHas = true
-				break
 			}
 			if method.Request == emptyPb ||
-				(!hasWrapper && method.Reply == emptyPb) {
+				method.Reply == emptyPb {
 				s.EmptyHas = true
-				break
 			}
 		case twoWayStreamsType, requestStreamsType:
 			s.UseIO = true
 		case returnsStreamsType:
 			if method.Request == anyPb {
 				s.AnyHas = true
-				break
 			}
 			if method.Request == emptyPb {
 				s.EmptyHas = true
-				break
 			}
 		}
 
