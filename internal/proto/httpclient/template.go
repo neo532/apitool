@@ -102,7 +102,8 @@ func (s *{{ .Service }}XHttpClient) {{ .Name }}(ctx context.Context, req *{{ .Re
 	err = xhttp.New(s.Client, opts...).Do(ctx, req, resp)
 	{{ else }}
 	rst := &{{ .ReplyTypeWrapper }}{}
-	if err = xhttp.New(s.Client, opts...).Do(ctx, req, rst); err == nil {
+	err = xhttp.New(s.Client, opts...).Do(ctx, req, rst)
+	if rst != nil {
 		resp = rst.{{ .RespTplDataName }}
 	}
 	{{ end }} 
