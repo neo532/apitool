@@ -248,7 +248,7 @@ func (r *Request) FmtHeader(c context.Context) (h http.Header, curl strings.Buil
 		curl.WriteString(" -H '" + ContentTypeHeaderKey + ":" + r.contentType + "'")
 		return
 	}
-	if h.Get(ContentTypeHeaderKey) == "" {
+	if h.Get(ContentTypeHeaderKey) == "" && HasBody(r.method) {
 		h.Set(ContentTypeHeaderKey, ContentTypeHeaderDefaultValue)
 		curl.WriteString(" -H '" + ContentTypeHeaderKey + ":" + ContentTypeHeaderDefaultValue + "'")
 	}
