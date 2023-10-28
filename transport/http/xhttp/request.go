@@ -153,10 +153,17 @@ func (r *Request) Do(c context.Context, req interface{}, reply interface{}) (err
 
 			var respCode int
 			var respBody []byte
-			if resp != nil {
-				respCode = resp.StatusCode
+			var cancelRetry bool
+			for i := 0; i < 1; i++ {
+				if err != nil {
+					break
+				}
+				if cancelRetry, err = r.errorDecoder(c, resp); err != nil {
+					break
+				}
+				if resp != nil {
+					respCode = resp.StatusCode
 
-				if err == nil {
 					if r.contentTypeResponse != "" {
 						resp.Header.Set(ContentTypeHeaderKey, r.contentTypeResponse)
 					}
@@ -165,7 +172,6 @@ func (r *Request) Do(c context.Context, req interface{}, reply interface{}) (err
 			}
 
 			r.log(c, url, headerBCurl, reqBody, respCode, respBody, cost, err)
-
 			c = header.AppendToContext(c,
 				"url", r.url,
 				"cost", cost.String(),
@@ -173,7 +179,7 @@ func (r *Request) Do(c context.Context, req interface{}, reply interface{}) (err
 				"httpcode", strconv.Itoa(respCode),
 			)
 
-			if err = r.errorDecoder(c, resp); err == nil {
+			if cancelRetry || err == nil {
 				break
 			}
 
@@ -256,7 +262,7 @@ func (r *Request) FmtHeader(c context.Context) (h http.Header, curl strings.Buil
 }
 
 // DecodeErrorFunc is decode error func.
-type DecodeErrorFunc func(c context.Context, res *http.Response) error
+type DecodeErrorFunc func(c context.Context, res *http.Response) (cancelRetry bool, err error)
 
 // EncodeRequestFunc is request encode func.
 type EncodeRequestFunc func(c context.Context, contentType string, in interface{}) (body []byte, err error)
@@ -295,12 +301,19 @@ func DefaultResponseDecoder(c context.Context, res *http.Response, v interface{}
 }
 
 // DefaultErrorDecoder is an HTTP error decoder.
-func DefaultErrorDecoder(c context.Context, resp *http.Response) (err error) {
+func DefaultErrorDecoder(c context.Context, resp *http.Response) (cancelRetry bool, err error) {
 	if resp == nil {
-		return errors.New("nil *http.Response")
+		err = errors.New("nil *http.Response")
+		return
 	}
 	if resp.StatusCode >= 200 && resp.StatusCode <= 299 {
 		return
 	}
-	return errors.New(resp.Status)
+	if resp.StatusCode >= 400 && resp.StatusCode <= 407 {
+		cancelRetry = true
+		err = errors.New(resp.Status)
+		return
+	}
+	err = errors.New(resp.Status)
+	return
 }
