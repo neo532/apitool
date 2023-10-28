@@ -69,7 +69,6 @@ func AppendUrlByStruct(c context.Context, param interface{}) (ctx context.Contex
 		if name == "-" {
 			continue
 		}
-		nameSlice := name + FORM_KEY_SLICE
 
 		// check whether if empty,in case of escape to heap,use strings.
 		emptyIndex := strings.Index(name, ",omitempty")
@@ -79,6 +78,8 @@ func AppendUrlByStruct(c context.Context, param interface{}) (ctx context.Contex
 			}
 			name = name[0:emptyIndex]
 		}
+
+		nameSlice := name + FORM_KEY_SLICE
 
 		// identify type
 		switch value.Kind() {
