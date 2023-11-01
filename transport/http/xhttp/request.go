@@ -154,16 +154,17 @@ func (r *Request) Do(c context.Context, req interface{}, reply interface{}) (err
 			var respCode int
 			var respBody []byte
 			var cancelRetry bool
-			for i := 0; i < 1; i++ {
+			for j := 0; j < 1; j++ {
 				if err != nil {
 					break
+				}
+				if resp != nil {
+					respCode = resp.StatusCode
 				}
 				if cancelRetry, err = r.errorDecoder(c, resp); err != nil {
 					break
 				}
 				if resp != nil {
-					respCode = resp.StatusCode
-
 					if r.contentTypeResponse != "" {
 						resp.Header.Set(ContentTypeHeaderKey, r.contentTypeResponse)
 					}
