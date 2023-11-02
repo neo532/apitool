@@ -130,20 +130,23 @@ func (r *Request) Do(c context.Context, req interface{}, reply interface{}) (err
 		url := r.FmtQueryArgs(c, r.url)
 
 		var reqBody []byte
-		reqBody, err = r.encoder(c, r.contentType, req)
-
-		var param *http.Request
-		param, err = http.NewRequest(r.method, url, bytes.NewReader(reqBody))
-		if err != nil {
+		if reqBody, err = r.encoder(c, r.contentType, req); err != nil {
 			return
 		}
-		var headerBCurl strings.Builder
-		param.Header, headerBCurl = r.FmtHeader(c)
+
+		reqHeader, headerBCurl := r.FmtHeader(c)
 
 		client := &http.Client{Timeout: r.timeLimit}
 
 		retryDuration := r.retryDuration
+		var er error
 		for i := 0; i <= r.retryTimes; i++ {
+
+			var param *http.Request
+			if param, err = http.NewRequest(r.method, url, bytes.NewReader(reqBody)); err != nil {
+				return
+			}
+			param.Header = reqHeader
 
 			// request
 			var resp *http.Response
@@ -168,7 +171,7 @@ func (r *Request) Do(c context.Context, req interface{}, reply interface{}) (err
 					if r.contentTypeResponse != "" {
 						resp.Header.Set(ContentTypeHeaderKey, r.contentTypeResponse)
 					}
-					respBody, err = r.decoder(c, resp, reply)
+					respBody, er = r.decoder(c, resp, reply)
 				}
 			}
 
@@ -188,6 +191,9 @@ func (r *Request) Do(c context.Context, req interface{}, reply interface{}) (err
 			if retryDuration < r.retryMaxDuration {
 				retryDuration = retryDuration + retryDuration
 			}
+		}
+		if err == nil {
+			err = er
 		}
 		return
 	}
