@@ -130,20 +130,23 @@ func (r *Request) Do(c context.Context, req interface{}, reply interface{}) (err
 		url := r.FmtQueryArgs(c, r.url)
 
 		var reqBody []byte
-		reqBody, err = r.encoder(c, r.contentType, req)
-
-		var param *http.Request
-		param, err = http.NewRequest(r.method, url, bytes.NewReader(reqBody))
-		if err != nil {
+		if reqBody, err = r.encoder(c, r.contentType, req); err != nil {
 			return
 		}
-		var headerBCurl strings.Builder
-		param.Header, headerBCurl = r.FmtHeader(c)
+
+		reqHeader, headerBCurl := r.FmtHeader(c)
 
 		client := &http.Client{Timeout: r.timeLimit}
 
 		retryDuration := r.retryDuration
+		var er error
 		for i := 0; i <= r.retryTimes; i++ {
+
+			var param *http.Request
+			if param, err = http.NewRequest(r.method, url, bytes.NewReader(reqBody)); err != nil {
+				return
+			}
+			param.Header = reqHeader
 
 			// request
 			var resp *http.Response
@@ -154,20 +157,21 @@ func (r *Request) Do(c context.Context, req interface{}, reply interface{}) (err
 			var respCode int
 			var respBody []byte
 			var cancelRetry bool
-			for i := 0; i < 1; i++ {
+			for j := 0; j < 1; j++ {
 				if err != nil {
 					break
+				}
+				if resp != nil {
+					respCode = resp.StatusCode
 				}
 				if cancelRetry, err = r.errorDecoder(c, resp); err != nil {
 					break
 				}
 				if resp != nil {
-					respCode = resp.StatusCode
-
 					if r.contentTypeResponse != "" {
 						resp.Header.Set(ContentTypeHeaderKey, r.contentTypeResponse)
 					}
-					respBody, err = r.decoder(c, resp, reply)
+					respBody, er = r.decoder(c, resp, reply)
 				}
 			}
 
@@ -187,6 +191,9 @@ func (r *Request) Do(c context.Context, req interface{}, reply interface{}) (err
 			if retryDuration < r.retryMaxDuration {
 				retryDuration = retryDuration + retryDuration
 			}
+		}
+		if err == nil {
+			err = er
 		}
 		return
 	}
@@ -282,6 +289,9 @@ func DefaultRequestEncoder(c context.Context, contentType string, in interface{}
 
 // DefaultResponseDecoder is an HTTP response decoder.
 func DefaultResponseDecoder(c context.Context, res *http.Response, v interface{}) (body []byte, err error) {
+	if v == nil {
+		return
+	}
 	subContentType := ContentSubtype(res.Header.Get("Content-Type"))
 	if subContentType == "" {
 		subContentType = DefaultContentType
