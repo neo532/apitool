@@ -97,7 +97,10 @@ func (s *{{ .Service }}XHttpClient) {{ .Name }}(ctx context.Context, req *{{ .Re
 	}
 	req = &{{ .RequestType }}{}
 	{{ end }}
-	{{ if eq .RespTpl "" }}
+	{{ if eq .ReplyType .AnyTypeKey }}
+	resp = &{{ .ReplyType }}{}
+	err = xhttp.New(s.Client, opts...).Do(ctx, req, resp)
+	{{ else if  eq .RespTpl "" }}
 	resp = &{{ .ReplyTypeWrapper }}{}
 	err = xhttp.New(s.Client, opts...).Do(ctx, req, resp)
 	{{ else }}
@@ -161,6 +164,8 @@ type Method struct {
 
 	HasQueryArgs bool
 
+	AnyTypeKey string
+
 	// type: unary or stream
 	Type MethodType
 
@@ -204,6 +209,7 @@ func (s *Service) execute() ([]byte, error) {
 
 		method.RequestType, method.RequestName, _ = FmtNameType(method.Request)
 		method.ReplyType, method.ReplyTypeWrapper, method.ReplyName, _ = FmtWraperName(method)
+		method.AnyTypeKey = anyType
 
 		switch method.Type {
 		case unaryType:

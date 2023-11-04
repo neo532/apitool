@@ -289,6 +289,9 @@ func DefaultRequestEncoder(c context.Context, contentType string, in interface{}
 
 // DefaultResponseDecoder is an HTTP response decoder.
 func DefaultResponseDecoder(c context.Context, res *http.Response, v interface{}) (body []byte, err error) {
+	if v == nil {
+		return
+	}
 	subContentType := ContentSubtype(res.Header.Get("Content-Type"))
 	if subContentType == "" {
 		subContentType = DefaultContentType
