@@ -91,6 +91,16 @@ func (s *{{ .Service }}XHttpClient) {{ .Name }}(ctx context.Context, req *{{ .Re
 		opts = append(opts, xhttp.WithErrorDecoder(s.ErrorDecoder))
 	}
 	{{ end }} 
+	{{ if and (ne .CertFileCrt "") (ne .CertFileKey "") }}
+	var op xhttp.Opt
+	if op, err = xhttp.WithCertFile("{{ .CertFileCrt }}", "{{ .CertFileKey }}"); err != nil {
+		return
+	}
+	opts = append(opts, op)
+	{{ end }} 
+	{{- if .InsecureSkipVerify }}
+		opts = append(opts, xhttp.WithInsecureSkipVerify({{ .InsecureSkipVerify }}))
+	{{ end }}
 	{{- if .HasQueryArgs }}
 	if ctx, err = xhttp.AppendUrlByStruct(ctx, req); err != nil {
 		return
@@ -184,6 +194,10 @@ type Method struct {
 	RequestEncoder  string
 	ResponseDecoder string
 	ErrorDecoder    string
+
+	CertFileCrt        string
+	CertFileKey        string
+	InsecureSkipVerify string
 }
 
 func FmtNameType(i string) (t, n, pb string) {

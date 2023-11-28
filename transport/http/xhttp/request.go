@@ -9,6 +9,7 @@ package xhttp
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -28,6 +29,8 @@ import (
 
 type Request struct {
 	clt client.Client
+
+	transport *http.Transport
 
 	url                 string
 	method              string
@@ -52,6 +55,45 @@ func WithTimeLimit(d time.Duration) Opt {
 		o.timeLimit = d
 	}
 }
+func WithMaxIdleConnsPerHost(n int) Opt {
+	return func(o *Request) {
+		o.transport.MaxIdleConnsPerHost = n
+	}
+}
+func initTLS(o *Request) {
+	if o.transport.TLSClientConfig == nil {
+		o.transport.TLSClientConfig = &tls.Config{}
+	}
+}
+func WithInsecureSkipVerify(b bool) Opt {
+	return func(o *Request) {
+		initTLS(o)
+		o.transport.TLSClientConfig.InsecureSkipVerify = b
+	}
+}
+func WithCertFile(crt, key string) (oR Opt, err error) {
+	var cert tls.Certificate
+	if cert, err = tls.LoadX509KeyPair(crt, key); err != nil {
+		return
+	}
+	oR = func(o *Request) {
+		initTLS(o)
+		o.transport.TLSClientConfig.Certificates = []tls.Certificate{cert}
+	}
+	return
+}
+func WithCert(crt, key []byte) (oR Opt, err error) {
+	var cert tls.Certificate
+	if cert, err = tls.X509KeyPair(crt, key); err != nil {
+		return
+	}
+	oR = func(o *Request) {
+		initTLS(o)
+		o.transport.TLSClientConfig.Certificates = []tls.Certificate{cert}
+	}
+	return
+}
+
 func WithUrl(s string) Opt {
 	return func(o *Request) {
 		o.url = s
@@ -107,6 +149,8 @@ func WithErrorDecoder(errorDecoder DecodeErrorFunc) Opt {
 
 func New(clt client.Client, opts ...Opt) (req *Request) {
 	req = &Request{
+		transport: http.DefaultTransport.(*http.Transport),
+
 		retryTimes:       clt.RetryTime(),
 		retryDuration:    time.Microsecond,
 		retryMaxDuration: 20 * time.Microsecond,
@@ -136,7 +180,10 @@ func (r *Request) Do(c context.Context, req interface{}, reply interface{}) (err
 
 		reqHeader, headerBCurl := r.FmtHeader(c)
 
-		client := &http.Client{Timeout: r.timeLimit}
+		client := &http.Client{
+			Timeout:   r.timeLimit,
+			Transport: r.transport,
+		}
 
 		retryDuration := r.retryDuration
 		var er error

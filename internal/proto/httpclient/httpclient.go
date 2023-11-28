@@ -199,6 +199,16 @@ func packageHttpParameter2Method(method *Method, opts []*proto.Option, cs *Servi
 				method.ResponseDecoder = c.Literal.Source
 			case "errorDecoder":
 				method.ErrorDecoder = c.Literal.Source
+			case "certFile":
+				crt := strings.Split(c.Literal.Source, ",")
+				method.CertFileCrt = crt[0]
+				if len(crt) == 2 {
+					method.CertFileKey = crt[1]
+				} else {
+					log.Fatal("Please input valid certFile,eg:./configs/xx.crt,./configs/xx.key")
+				}
+			case "insecureSkipVerify":
+				method.InsecureSkipVerify = c.Literal.Source
 			}
 		}
 	}
