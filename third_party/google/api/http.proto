@@ -368,14 +368,13 @@ message HttpRule {
   string retryDuration = 14;
   string retryMaxDuration = 15;
   string timeLimit = 16;
-  string function = 17;
-  string respTpl = 18;
-  string reqOmitEmpty = 19;
-  string contentTypeRequest = 20;
-  string contentTypeResponse = 21;
-  string requestEncoder = 22;
-  string responseDecoder = 23;
-  string errorDecoder = 24;
+  string respTpl = 17;
+  string contentTypeRequest = 18;
+  string contentTypeResponse = 19;
+  string requestEncoder = 20;
+  string responseDecoder = 21;
+  string errorDecoder = 22;
+  string needClient = 23;
 }
 
 // A custom pattern is used for defining custom HTTP verb.

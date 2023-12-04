@@ -67,6 +67,7 @@ func buildHttpClient(cmd *cobra.Command, filePath string) {
 	//	res           []*Service
 	//	structNameMap = make(map[string]struct{}, 10)
 	//)
+	var needClient bool
 	proto.Walk(definition,
 		proto.WithOption(func(o *proto.Option) {
 			switch o.Name {
@@ -121,8 +122,14 @@ func buildHttpClient(cmd *cobra.Command, filePath string) {
 
 			}
 			pb.Services = append(pb.Services, cs)
+			if cs.NeedClient == true {
+				needClient = true
+			}
 		}),
 	)
+	if needClient == false {
+		return
+	}
 	if _, err := os.Stat(targetDir); os.IsNotExist(err) {
 		fmt.Printf("Target directory: %s does not exsits\n", targetDir)
 		return
@@ -170,19 +177,25 @@ func packageHttpParameter2Method(method *Method, opts []*proto.Option, cs *Servi
 			switch c.Name {
 			case "contentType":
 				method.ContentType = c.Literal.Source
+				cs.NeedClient = true
 			case "contentTypeResponse":
 				method.ContentTypeResponse = c.Literal.Source
+				cs.NeedClient = true
 			case "retryTimes":
 				method.RetryTimes = c.Literal.Source
+				cs.NeedClient = true
 			case "retryDuration":
 				cs.HasImportTime = "true"
 				method.RetryDuration = c.Literal.Source
+				cs.NeedClient = true
 			case "retryMaxDuration":
 				cs.HasImportTime = "true"
 				method.RetryMaxDuration = c.Literal.Source
+				cs.NeedClient = true
 			case "timeLimit":
 				cs.HasImportTime = "true"
 				method.TimeLimit = c.Literal.Source
+				cs.NeedClient = true
 			case "get", "post", "put", "delete", "head", "patch", "options", "trace", "connect":
 				method.Method = strings.ToUpper(c.Name)
 				method.Path = c.Literal.Source
@@ -193,12 +206,18 @@ func packageHttpParameter2Method(method *Method, opts []*proto.Option, cs *Servi
 				if len(tmp) >= 2 {
 					method.RespTplDataName = tmp[1]
 				}
+				cs.NeedClient = true
 			case "requestEncoder":
 				method.RequestEncoder = c.Literal.Source
+				cs.NeedClient = true
 			case "responseDecoder":
 				method.ResponseDecoder = c.Literal.Source
+				cs.NeedClient = true
 			case "errorDecoder":
 				method.ErrorDecoder = c.Literal.Source
+				cs.NeedClient = true
+			case "needClient":
+				cs.NeedClient = true
 			}
 		}
 	}

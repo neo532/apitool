@@ -132,6 +132,8 @@ type Service struct {
 	Service     string
 	Methods     []*Method
 
+	NeedClient bool
+
 	EmptyHas bool
 	AnyHas   bool
 
