@@ -10,10 +10,12 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -79,6 +81,21 @@ func WithCertFile(crt, key string) (oR Opt, err error) {
 	oR = func(o *Request) {
 		initTLS(o)
 		o.transport.TLSClientConfig.Certificates = []tls.Certificate{cert}
+	}
+	return
+}
+func WithCaCertFile(crt string) (oR Opt, err error) {
+
+	var caCrt []byte
+	if caCrt, err = os.ReadFile(crt); err != nil {
+		return
+	}
+	pool := x509.NewCertPool()
+	pool.AppendCertsFromPEM(caCrt)
+
+	oR = func(o *Request) {
+		initTLS(o)
+		o.transport.TLSClientConfig.RootCAs = pool
 	}
 	return
 }

@@ -92,14 +92,21 @@ func (s *{{ .Service }}XHttpClient) {{ .Name }}(ctx context.Context, req *{{ .Re
 	}
 	{{ end }} 
 	{{ if and (ne .CertFileCrt "") (ne .CertFileKey "") }}
-	var op xhttp.Opt
-	if op, err = xhttp.WithCertFile("{{ .CertFileCrt }}", "{{ .CertFileKey }}"); err != nil {
+	var certFile xhttp.Opt
+	if certFile, err = xhttp.WithCertFile("{{ .CertFileCrt }}", "{{ .CertFileKey }}"); err != nil {
 		return
 	}
-	opts = append(opts, op)
+	opts = append(opts, certFile)
+	{{ end }} 
+	{{ if ne .CaCertFile "" }}
+	var caCertFile xhttp.Opt
+	if caCertFile, err = xhttp.WithCaCertFile("{{ .CaCertFile }}"); err != nil {
+		return
+	}
+	opts = append(opts, caCertFile)
 	{{ end }} 
 	{{- if .InsecureSkipVerify }}
-		opts = append(opts, xhttp.WithInsecureSkipVerify({{ .InsecureSkipVerify }}))
+	opts = append(opts, xhttp.WithInsecureSkipVerify({{ .InsecureSkipVerify }}))
 	{{ end }}
 	{{- if .HasQueryArgs }}
 	if ctx, err = xhttp.AppendUrlByStruct(ctx, req); err != nil {
@@ -137,10 +144,12 @@ const (
 
 // Service is a proto service.
 type Service struct {
-	Package     string
+	//Package     string
 	PackageName string
 	Service     string
 	Methods     []*Method
+
+	NeedClient bool
 
 	EmptyHas bool
 	AnyHas   bool
@@ -159,9 +168,9 @@ type Service struct {
 
 // Method is a proto method.
 type Method struct {
-	Service  string
-	MService string
-	Name     string
+	Service string
+	//MService string
+	Name string
 
 	Request string
 	Reply   string
@@ -198,6 +207,7 @@ type Method struct {
 	CertFileCrt        string
 	CertFileKey        string
 	InsecureSkipVerify string
+	CaCertFile         string
 }
 
 func FmtNameType(i string) (t, n, pb string) {
@@ -213,8 +223,8 @@ func FmtNameType(i string) (t, n, pb string) {
 func (s *Service) execute() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
-	sPackage := strings.Split(s.Package, "/")
-	mService := sPackage[len(sPackage)-2]
+	//sPackage := strings.Split(s.Package, "/")
+	//mService := sPackage[len(sPackage)-2]
 
 	for _, method := range s.Methods {
 		if xhttp.HasBody(method.Method) == false {
@@ -247,7 +257,7 @@ func (s *Service) execute() ([]byte, error) {
 			}
 		}
 
-		method.MService = mService
+		//method.MService = mService
 	}
 
 	s.ServiceLower = strings.ToLower(s.Service)

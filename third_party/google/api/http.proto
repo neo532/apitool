@@ -376,8 +376,10 @@ message HttpRule {
   string requestEncoder = 22;
   string responseDecoder = 23;
   string errorDecoder = 24;
-  string certFile = 25;
-  string insecureSkipVerify = 26;
+  string insecureSkipVerify = 25;
+  string certFile = 26;
+  string caCertFile = 27;
+  string needClient = 28;
 }
 
 // A custom pattern is used for defining custom HTTP verb.

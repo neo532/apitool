@@ -72,8 +72,8 @@ func buildHttpClient(cmd *cobra.Command, filePath string) {
 			switch o.Name {
 			case "go_package":
 				p := strings.Split(o.Constant.Source, ";")
-				pb.Package = p[0]
-				pb.PackageName = p[1]
+				//pb.Package = p[0]
+				pb.PackageName = filepath.Base(p[len(p)-1])
 			}
 		}),
 		proto.WithMessage(func(m *proto.Message) {
@@ -86,10 +86,10 @@ func buildHttpClient(cmd *cobra.Command, filePath string) {
 			cs := &Service{
 				TargetDir:     targetDir,
 				ProtoFileName: pb.FilePath,
-				Package:       pb.Package,
-				PackageName:   pb.PackageName,
-				Service:       s.Name,
-				Domains:       make(map[string]string, 2),
+				//Package:       pb.Package,
+				PackageName: pb.PackageName,
+				Service:     s.Name,
+				Domains:     make(map[string]string, 2),
 			}
 			for _, e := range s.Elements {
 
@@ -199,6 +199,10 @@ func packageHttpParameter2Method(method *Method, opts []*proto.Option, cs *Servi
 				method.ResponseDecoder = c.Literal.Source
 			case "errorDecoder":
 				method.ErrorDecoder = c.Literal.Source
+			case "insecureSkipVerify":
+				method.InsecureSkipVerify = c.Literal.Source
+			case "caCertFile":
+				method.CaCertFile = c.Literal.Source
 			case "certFile":
 				crt := strings.Split(c.Literal.Source, ",")
 				method.CertFileCrt = crt[0]
@@ -207,8 +211,6 @@ func packageHttpParameter2Method(method *Method, opts []*proto.Option, cs *Servi
 				} else {
 					log.Fatal("Please input valid certFile,eg:./configs/xx.crt,./configs/xx.key")
 				}
-			case "insecureSkipVerify":
-				method.InsecureSkipVerify = c.Literal.Source
 			}
 		}
 	}

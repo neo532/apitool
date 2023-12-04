@@ -11,9 +11,9 @@ import (
 )
 
 type Proto struct {
-	FilePath       string
-	PackageName    string
-	Package        string
+	FilePath    string
+	PackageName string
+	//Package        string
 	MessageNameMap map[string]struct{} // exists message name
 	Services       []*Service
 	WraperMap      map[string]struct{}
