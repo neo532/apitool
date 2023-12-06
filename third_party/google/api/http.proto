@@ -369,7 +369,7 @@ message HttpRule {
   string retryMaxDuration = 15;
   string timeLimit = 16;
   string respTpl = 17;
-  string contentTypeRequest = 18;
+  string contentType = 18;
   string contentTypeResponse = 19;
   string requestEncoder = 20;
   string responseDecoder = 21;
