@@ -27,17 +27,8 @@ var serviceTemplate = `
 package {{ .PackageName }}
 
 import (
-	{{- if .UseContext }}
-	"context"{{- end }}
-	{{- if .UseIO }}
-	"io"{{- end }}
-	{{- if ne .HasImportTime "" }}
-	"time"{{- end }}
-	{{- if .EmptyHas }}
-	"google.golang.org/protobuf/types/known/emptypb"{{- end }}
-	{{- if .AnyHas }}
-	"google.golang.org/protobuf/types/known/anypb"{{- end }}
-
+	{{range $key,$value := .ImportList }}"{{ $key }}"
+	{{ end }}
 	kithttp "github.com/neo532/apitool/transport/http"
 	"github.com/neo532/apitool/transport/http/xhttp"
 	"github.com/neo532/apitool/transport/http/xhttp/client"
@@ -117,8 +108,8 @@ func (s *{{ .Service }}XHttpClient) {{ .Name }}(ctx context.Context, req *{{ .Re
 	{{ if eq .ReplyType .AnyTypeKey }}
 	resp = &{{ .ReplyType }}{}
 	err = xhttp.New(s.Client, opts...).Do(ctx, req, resp)
-	{{ else if  eq .RespTpl "" }}
-	resp = &{{ .ReplyTypeWrapper }}{}
+	{{ else if  eq .ReplyTypeWrapper "" }}
+	resp = &{{ .ReplyType }}{}
 	err = xhttp.New(s.Client, opts...).Do(ctx, req, resp)
 	{{ else }}
 	rst := &{{ .ReplyTypeWrapper }}{}
@@ -151,35 +142,38 @@ type Service struct {
 
 	NeedClient bool
 
-	EmptyHas bool
-	AnyHas   bool
-
 	Domains       map[string]string
 	DomainsLen    int
 	TargetDir     string
 	ProtoFileName string
-	HasImportTime string
 
 	ServiceLower string
 
-	UseIO      bool
-	UseContext bool
+	EmptyHas bool
+	AnyHas   bool
+	//UseIO    bool
+	//UseContext    bool
+	//HasImportTime string
+
+	ImportList        Import
+	PackageDomainList PackageDomain
 }
 
 // Method is a proto method.
 type Method struct {
 	Service string
-	//MService string
-	Name string
+	Name    string
 
+	// google.protobuf.Empty | google.protobuf.Any | github.com/a.B | B
 	Request string
 	Reply   string
 
-	RequestName      string
-	RequestType      string
-	ReplyName        string
-	ReplyType        string
-	ReplyTypeWrapper string
+	// emptypb.Empty | anypb.Any | a.B | B
+	RequestType string
+	ReplyType   string
+
+	// EmptyWrapper | AnyWrapper | BWrapper
+	ReplyTypeWrapper string // anypb & wrappper at same time
 
 	HasQueryArgs bool
 
@@ -210,54 +204,82 @@ type Method struct {
 	CaCertFile         string
 }
 
-func FmtNameType(i string) (t, n, pb string) {
-	if i == emptyPb {
-		return emptyType, emptyVarName, emptyPb
+func (s *Service) ParsePackageInParam(param string) (paramType, packageName string) {
+	if strings.Contains(param, ".") == false {
+		paramType = param
+		return
 	}
-	if i == anyPb {
-		return anyType, anyVarName, anyPb
+	packageName, paramType = s.PackageDomainList.Fix(param)
+	return
+}
+
+func (s *Service) Alias(m *Method) {
+	var pkg string
+
+	// request
+	switch m.Request {
+	case emptyPb:
+		m.RequestType = emptyType
+	case anyPb:
+		m.RequestType = anyType
+	default:
+		if m.RequestType, pkg = s.ParsePackageInParam(m.Request); pkg != "" {
+			s.ImportList = s.ImportList.Special(pkg)
+		}
 	}
-	return i, i, i
+
+	// reply
+	switch m.Reply {
+	case emptyPb:
+		m.ReplyType = emptyType
+	case anyPb:
+		m.ReplyType = anyType
+	default:
+		if m.ReplyType, pkg = s.ParsePackageInParam(m.Reply); pkg != "" {
+			s.ImportList = s.ImportList.Special(pkg)
+		}
+	}
+	if m.RespTpl != "" {
+		reply := strings.ReplaceAll(m.ReplyType, wrapper, "")
+		rs := strings.Split(reply, ".")
+		m.ReplyTypeWrapper = rs[len(rs)-1] + wrapper
+	}
 }
 
 func (s *Service) execute() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
-	//sPackage := strings.Split(s.Package, "/")
-	//mService := sPackage[len(sPackage)-2]
-
 	for _, method := range s.Methods {
+
 		if xhttp.HasBody(method.Method) == false {
 			method.HasQueryArgs = true
 		}
 
-		method.RequestType, method.RequestName, _ = FmtNameType(method.Request)
-		method.ReplyType, method.ReplyTypeWrapper, method.ReplyName, _ = FmtWraperName(method)
+		s.Alias(method)
+
 		method.AnyTypeKey = anyType
 
 		switch method.Type {
 		case unaryType:
-			s.UseContext = true
+			s.ImportList = s.ImportList.Context()
 			if method.Request == anyPb ||
 				method.Reply == anyPb {
-				s.AnyHas = true
+				s.ImportList = s.ImportList.AnyPB()
 			}
 			if method.Request == emptyPb ||
 				method.Reply == emptyPb {
-				s.EmptyHas = true
+				s.ImportList = s.ImportList.EmptyPB()
 			}
 		case twoWayStreamsType, requestStreamsType:
-			s.UseIO = true
+			s.ImportList = s.ImportList.IO()
 		case returnsStreamsType:
 			if method.Request == anyPb {
-				s.AnyHas = true
+				s.ImportList = s.ImportList.AnyPB()
 			}
 			if method.Request == emptyPb {
-				s.EmptyHas = true
+				s.ImportList = s.ImportList.EmptyPB()
 			}
 		}
-
-		//method.MService = mService
 	}
 
 	s.ServiceLower = strings.ToLower(s.Service)

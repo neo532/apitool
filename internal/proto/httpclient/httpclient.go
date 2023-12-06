@@ -23,7 +23,9 @@ var (
 		Run:   run,
 	}
 
-	targetDir string
+	targetDir    string
+	verboseKey   = "verbose"
+	verboseValue string
 )
 
 func init() {
@@ -36,6 +38,15 @@ func run(cmd *cobra.Command, args []string) {
 		return
 	}
 	for _, v := range args {
+		if v == verboseKey {
+			verboseValue = verboseKey
+			break
+		}
+	}
+	for _, v := range args {
+		if v == verboseKey {
+			continue
+		}
 		buildHttpClient(cmd, v)
 	}
 }
@@ -44,10 +55,11 @@ func buildHttpClient(cmd *cobra.Command, filePath string) {
 	var err error
 
 	pb := &Proto{
-		MessageNameMap: make(map[string]struct{}, 10),
-		Services:       make([]*Service, 0, 10),
-		FilePath:       filePath,
-		CacheTpl:       make(map[string]string, 1),
+		MessageNameMap:    make(map[string]struct{}, 10),
+		Services:          make([]*Service, 0, 10),
+		FilePath:          filePath,
+		CacheTpl:          make(map[string]string, 1),
+		PackageDomainList: NewPackageDomainList(),
 	}
 
 	//targetDir = filepath.Dir(pb.FilePath)
@@ -60,20 +72,15 @@ func buildHttpClient(cmd *cobra.Command, filePath string) {
 		return
 	}
 
-	//var (
-	//	pkg     string
-	//	pkgName string
-	//	//projectDomain = make(map[string]string, 2)
-	//	res           []*Service
-	//	structNameMap = make(map[string]struct{}, 10)
-	//)
 	var needClient bool
 	proto.Walk(definition,
+		proto.WithImport(func(i *proto.Import) {
+			pb.PackageDomainList.Add(i.Filename)
+		}),
 		proto.WithOption(func(o *proto.Option) {
 			switch o.Name {
 			case "go_package":
 				p := strings.Split(o.Constant.Source, ";")
-				//pb.Package = p[0]
 				pb.PackageName = filepath.Base(p[len(p)-1])
 			}
 		}),
@@ -88,9 +95,11 @@ func buildHttpClient(cmd *cobra.Command, filePath string) {
 				TargetDir:     targetDir,
 				ProtoFileName: pb.FilePath,
 				//Package:       pb.Package,
-				PackageName: pb.PackageName,
-				Service:     s.Name,
-				Domains:     make(map[string]string, 2),
+				PackageName:       pb.PackageName,
+				Service:           s.Name,
+				Domains:           make(map[string]string, 2),
+				ImportList:        NewImportList(),
+				PackageDomainList: pb.PackageDomainList,
 			}
 			for _, e := range s.Elements {
 
@@ -149,7 +158,9 @@ func buildHttpClient(cmd *cobra.Command, filePath string) {
 		if err := os.WriteFile(to, b, 0o644); err != nil {
 			log.Fatal(err)
 		}
-		fmt.Println(to)
+		if verboseValue != "" {
+			fmt.Println(to)
+		}
 
 		// .proto suffix
 		for _, m := range s.Methods {
@@ -166,7 +177,7 @@ func buildHttpClient(cmd *cobra.Command, filePath string) {
 		pb.AppendWraper()
 
 		// let wraper append to file for PB generator
-		base.Run("apitool", "pbstruct", pb.FilePath)
+		base.Run("apitool", "pbstruct", pb.FilePath, verboseValue)
 	}
 }
 
@@ -185,15 +196,15 @@ func packageHttpParameter2Method(method *Method, opts []*proto.Option, cs *Servi
 				method.RetryTimes = c.Literal.Source
 				cs.NeedClient = true
 			case "retryDuration":
-				cs.HasImportTime = "true"
+				cs.ImportList = cs.ImportList.Time()
 				method.RetryDuration = c.Literal.Source
 				cs.NeedClient = true
 			case "retryMaxDuration":
-				cs.HasImportTime = "true"
+				cs.ImportList = cs.ImportList.Time()
 				method.RetryMaxDuration = c.Literal.Source
 				cs.NeedClient = true
 			case "timeLimit":
-				cs.HasImportTime = "true"
+				cs.ImportList = cs.ImportList.Time()
 				method.TimeLimit = c.Literal.Source
 				cs.NeedClient = true
 			case "get", "post", "put", "delete", "head", "patch", "options", "trace", "connect":

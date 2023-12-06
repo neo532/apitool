@@ -14,12 +14,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var rootCmd = &cobra.Command{
-	Use:     "apitool",
-	Short:   "Apitool: An elegant toolkit for api.",
-	Long:    `Apitool: An elegant toolkit for api.`,
-	Version: release,
-}
+var (
+	rootCmd = &cobra.Command{
+		Use:     "apitool",
+		Short:   "Apitool: An elegant toolkit for api.",
+		Long:    `Apitool: An elegant toolkit for api.`,
+		Version: release,
+	}
+)
 
 func init() {
 	rootCmd.AddCommand(upgrade.CmdUpgrade)

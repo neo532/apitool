@@ -29,7 +29,15 @@ func GoInstall(path ...string) error {
 
 // Run a command.
 func Run(command string, inputs ...string) (err error) {
-	fmt.Printf(fmt.Sprintf("shell: %s %s\n", command, strings.Join(inputs, " ")))
+	var isVerbose bool
+	for _, v := range inputs {
+		if v == "verbose" {
+			isVerbose = true
+		}
+	}
+	if isVerbose {
+		fmt.Printf(fmt.Sprintf("shell: %s %s\n", command, strings.Join(inputs, " ")))
+	}
 	cmd := exec.Command(command, inputs...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

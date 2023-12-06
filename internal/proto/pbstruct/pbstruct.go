@@ -14,12 +14,16 @@ import (
 )
 
 // CmdStruct represents the source command.
-var CmdStruct = &cobra.Command{
-	Use:   "pbstruct",
-	Short: "Generate the proto server code",
-	Long:  "Generate the proto server code. Example: apitool struct helloworld.proto",
-	Run:   run,
-}
+var (
+	CmdStruct = &cobra.Command{
+		Use:   "pbstruct",
+		Short: "Generate the proto server code",
+		Long:  "Generate the proto server code. Example: apitool struct helloworld.proto",
+		Run:   run,
+	}
+	verboseValue string
+	verboseKey   = "verbose"
+)
 
 var protoPath string
 
@@ -34,6 +38,11 @@ func run(cmd *cobra.Command, args []string) {
 	if len(args) == 0 {
 		fmt.Println("Please enter the proto file or directory")
 		return
+	}
+	for _, v := range args {
+		if v == verboseKey {
+			verboseValue = verboseKey
+		}
 	}
 	var (
 		err   error
@@ -59,7 +68,7 @@ func run(cmd *cobra.Command, args []string) {
 		return
 	}
 	pbGoPath := strings.Replace(proto, ".proto", ".pb.go", 1)
-	err = base.Run("protoc-go-inject-tag", "-input="+pbGoPath)
+	err = base.Run("protoc-go-inject-tag", "-input="+pbGoPath, verboseValue)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -124,7 +133,9 @@ func generate(proto string, args []string) error {
 	if err := fd.Run(); err != nil {
 		return err
 	}
-	fmt.Printf("proto: %s\n", proto)
+	if verboseValue != "" {
+		fmt.Printf("proto: %s\n", proto)
+	}
 	return nil
 }
 
