@@ -22,13 +22,13 @@ type XClient struct {
 
 func NewXClient(clt client.Client) (xc *XClient) {
 	return &XClient{
-		Client: clt,
+		Client: clt.CopyMiddleware(),
 	}
 }
 
-func (xc *XClient) WithMiddleware(mds ...middleware.Middleware) {
+func (s *XClient) WithMiddleware(mds ...middleware.Middleware) {
 	for _, mw := range mds {
-		xc.Client = xc.Client.AddMiddleware(mw)
+		s.Client = s.Client.AddMiddleware(mw)
 	}
 	return
 }

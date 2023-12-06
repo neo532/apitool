@@ -22,15 +22,8 @@ type Proto struct {
 	PackageDomainList PackageDomain
 }
 
-func IsAddWraper(wrapperName string) (b bool) {
-	if strings.TrimSuffix(wrapperName, wrapper) != wrapperName {
-		return true
-	}
-	return
-}
-
-func (pb *Proto) IsNeedAddWraper(method *Method) (b bool) {
-	if method.RespTpl != "" {
+func (pb *Proto) IsNeedAddWrapper(method *Method) (b bool) {
+	if method.ReplyTypeWrapper != "" {
 		if _, ok := pb.MessageNameMap[method.ReplyTypeWrapper]; !ok {
 			return true
 		}

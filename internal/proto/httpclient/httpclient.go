@@ -165,12 +165,12 @@ func buildHttpClient(cmd *cobra.Command, filePath string) {
 		// .proto suffix
 		for _, m := range s.Methods {
 
-			var tpl string
-			if tpl, err = pb.GetTpl(m); err != nil {
-				fmt.Fprintln(os.Stderr, fmt.Sprintf("BuildHttpClient %s has error[%+v]", pb.FilePath, err))
-				return
-			}
-			if pb.IsNeedAddWraper(m) == true {
+			if pb.IsNeedAddWrapper(m) == true {
+				var tpl string
+				if tpl, err = pb.GetTpl(m); err != nil {
+					fmt.Fprintln(os.Stderr, fmt.Sprintf("BuildHttpClient %s has error[%+v]", pb.FilePath, err))
+					return
+				}
 				pb.NewWraper(m, tpl)
 			}
 		}

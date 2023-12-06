@@ -240,7 +240,7 @@ func (s *Service) Alias(m *Method) {
 		}
 	}
 	if m.RespTpl != "" {
-		reply := strings.ReplaceAll(m.ReplyType, wrapper, "")
+		reply := strings.TrimSuffix(m.ReplyType, wrapper)
 		rs := strings.Split(reply, ".")
 		m.ReplyTypeWrapper = rs[len(rs)-1] + wrapper
 	}
