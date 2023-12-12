@@ -5,19 +5,9 @@ import (
 	"html/template"
 	"strings"
 
+	"github.com/neo532/apitool/internal/base"
+	"github.com/neo532/apitool/internal/proto/entity"
 	"github.com/neo532/apitool/transport/http/xhttp"
-)
-
-const (
-	emptyPb      = "google.protobuf.Empty"
-	emptyVarName = "Empty"
-	emptyType    = "emptypb.Empty"
-
-	anyPb      = "google.protobuf.Any"
-	anyVarName = "Any"
-	anyType    = "anypb.Any"
-
-	wrapper = "Wrapper"
 )
 
 var serviceTemplate = `
@@ -27,7 +17,7 @@ var serviceTemplate = `
 package {{ .PackageName }}
 
 import (
-	{{range $key,$value := .ImportList }}"{{ $key }}"
+	{{range $key,$value := .ImportList }}{{ $value }}"{{ $key }}"
 	{{ end }}
 	kithttp "github.com/neo532/apitool/transport/http"
 	"github.com/neo532/apitool/transport/http/xhttp"
@@ -124,15 +114,6 @@ func (s *{{ .Service }}XHttpClient) {{ .Name }}(ctx context.Context, req *{{ .Re
 {{- end }}
 `
 
-type MethodType uint8
-
-const (
-	unaryType          MethodType = 1
-	twoWayStreamsType  MethodType = 2
-	requestStreamsType MethodType = 3
-	returnsStreamsType MethodType = 4
-)
-
 // Service is a proto service.
 type Service struct {
 	//Package     string
@@ -155,8 +136,8 @@ type Service struct {
 	//UseContext    bool
 	//HasImportTime string
 
-	ImportList        Import
-	PackageDomainList PackageDomain
+	ImportList        base.Import
+	PackageDomainList base.PackageDomain
 }
 
 // Method is a proto method.
@@ -180,7 +161,7 @@ type Method struct {
 	AnyTypeKey string
 
 	// type: unary or stream
-	Type MethodType
+	Type entity.MethodType
 
 	//xhttp opts
 	Path                string
@@ -204,52 +185,36 @@ type Method struct {
 	CaCertFile         string
 }
 
-func (s *Service) ParsePackageInParam(param string) (paramType, packageName string) {
-	if strings.Contains(param, ".") == false {
-		paramType = param
-		return
-	}
-	packageName, paramType = s.PackageDomainList.Fix(param)
-	return
-}
-
 func (s *Service) Alias(m *Method) {
 	var pkg string
+	var ok bool
 
 	// request
-	switch m.Request {
-	case emptyPb:
-		m.RequestType = emptyType
-	case anyPb:
-		m.RequestType = anyType
-	default:
-		if m.RequestType, pkg = s.ParsePackageInParam(m.Request); pkg != "" {
+	if m.RequestType, ok = entity.SpecialMap[m.Request]; !ok {
+		if m.RequestType, pkg = s.PackageDomainList.ParsePackageInParam(m.Request); pkg != "" {
 			s.ImportList = s.ImportList.Special(pkg)
 		}
 	}
 
 	// reply
-	switch m.Reply {
-	case emptyPb:
-		m.ReplyType = emptyType
-	case anyPb:
-		m.ReplyType = anyType
-	default:
-		if m.ReplyType, pkg = s.ParsePackageInParam(m.Reply); pkg != "" {
+	if m.ReplyType, ok = entity.SpecialMap[m.Reply]; !ok {
+		if m.ReplyType, pkg = s.PackageDomainList.ParsePackageInParam(m.Reply); pkg != "" {
 			s.ImportList = s.ImportList.Special(pkg)
 		}
 	}
+
 	if m.RespTpl != "" {
-		reply := strings.ReplaceAll(m.ReplyType, wrapper, "")
+		reply := strings.TrimSuffix(m.ReplyType, entity.Wrapper)
 		rs := strings.Split(reply, ".")
-		m.ReplyTypeWrapper = rs[len(rs)-1] + wrapper
+		m.ReplyTypeWrapper = rs[len(rs)-1] + entity.Wrapper
 	}
 }
 
-func (s *Service) execute() ([]byte, error) {
-	buf := new(bytes.Buffer)
+func (s *Service) execute() (rst []byte, err error) {
 
 	for _, method := range s.Methods {
+
+		method.AnyTypeKey = entity.AnyType
 
 		if xhttp.HasBody(method.Method) == false {
 			method.HasQueryArgs = true
@@ -257,39 +222,43 @@ func (s *Service) execute() ([]byte, error) {
 
 		s.Alias(method)
 
-		method.AnyTypeKey = anyType
-
 		switch method.Type {
-		case unaryType:
+		case entity.UnaryType:
 			s.ImportList = s.ImportList.Context()
-			if method.Request == anyPb ||
-				method.Reply == anyPb {
+			if method.Request == entity.AnyPb ||
+				method.Reply == entity.AnyPb {
 				s.ImportList = s.ImportList.AnyPB()
 			}
-			if method.Request == emptyPb ||
-				method.Reply == emptyPb {
+			if method.Request == entity.EmptyPb ||
+				method.Reply == entity.EmptyPb {
 				s.ImportList = s.ImportList.EmptyPB()
 			}
-		case twoWayStreamsType, requestStreamsType:
+		case entity.TwoWayStreamsType, entity.RequestStreamsType:
 			s.ImportList = s.ImportList.IO()
-		case returnsStreamsType:
-			if method.Request == anyPb {
+		case entity.ReturnsStreamsType:
+			if method.Request == entity.AnyPb {
 				s.ImportList = s.ImportList.AnyPB()
 			}
-			if method.Request == emptyPb {
+			if method.Request == entity.EmptyPb {
 				s.ImportList = s.ImportList.EmptyPB()
 			}
 		}
 	}
 
+	s.ImportList = s.ImportList.Show()
+
 	s.ServiceLower = strings.ToLower(s.Service)
 
-	tmpl, err := template.New("service").Parse(serviceTemplate)
-	if err != nil {
-		return nil, err
+	var tmpl *template.Template
+	if tmpl, err = template.
+		New("service").
+		Parse(serviceTemplate); err != nil {
+		return
 	}
-	if err := tmpl.Execute(buf, s); err != nil {
-		return nil, err
+	buf := new(bytes.Buffer)
+	if err = tmpl.Execute(buf, s); err != nil {
+		return
 	}
-	return buf.Bytes(), nil
+	rst = buf.Bytes()
+	return
 }

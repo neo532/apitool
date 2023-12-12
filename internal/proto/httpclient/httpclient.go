@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/neo532/apitool/internal/base"
+	"github.com/neo532/apitool/internal/proto/entity"
 )
 
 // CmdClient the httpclient command.
@@ -59,7 +60,7 @@ func buildHttpClient(cmd *cobra.Command, filePath string) {
 		Services:          make([]*Service, 0, 10),
 		FilePath:          filePath,
 		CacheTpl:          make(map[string]string, 1),
-		PackageDomainList: NewPackageDomainList(),
+		PackageDomainList: base.NewPackageDomainList(),
 	}
 
 	//targetDir = filepath.Dir(pb.FilePath)
@@ -98,7 +99,7 @@ func buildHttpClient(cmd *cobra.Command, filePath string) {
 				PackageName:       pb.PackageName,
 				Service:           s.Name,
 				Domains:           make(map[string]string, 2),
-				ImportList:        NewImportList(),
+				ImportList:        base.NewImportList(),
 				PackageDomainList: pb.PackageDomainList,
 			}
 			for _, e := range s.Elements {
@@ -119,7 +120,7 @@ func buildHttpClient(cmd *cobra.Command, filePath string) {
 						Name:    r.Name,
 						Request: r.RequestType,
 						Reply:   r.ReturnsType,
-						Type:    getMethodType(r.StreamsRequest, r.StreamsReturns),
+						Type:    entity.GetMethodType(r.StreamsRequest, r.StreamsReturns),
 					}
 					// http parameter
 					if len(r.Elements) > 0 {
@@ -165,12 +166,12 @@ func buildHttpClient(cmd *cobra.Command, filePath string) {
 		// .proto suffix
 		for _, m := range s.Methods {
 
-			var tpl string
-			if tpl, err = pb.GetTpl(m); err != nil {
-				fmt.Fprintln(os.Stderr, fmt.Sprintf("BuildHttpClient %s has error[%+v]", pb.FilePath, err))
-				return
-			}
-			if pb.IsNeedAddWraper(m) == true {
+			if pb.IsNeedAddWrapper(m) == true {
+				var tpl string
+				if tpl, err = pb.GetTpl(m); err != nil {
+					fmt.Fprintln(os.Stderr, fmt.Sprintf("BuildHttpClient %s has error[%+v]", pb.FilePath, err))
+					return
+				}
 				pb.NewWraper(m, tpl)
 			}
 		}
@@ -248,17 +249,4 @@ func packageHttpParameter2Method(method *Method, opts []*proto.Option, cs *Servi
 		}
 	}
 	return
-}
-
-func getMethodType(streamsRequest, streamsReturns bool) MethodType {
-	if !streamsRequest && !streamsReturns {
-		return unaryType
-	} else if streamsRequest && streamsReturns {
-		return twoWayStreamsType
-	} else if streamsRequest {
-		return requestStreamsType
-	} else if streamsReturns {
-		return returnsStreamsType
-	}
-	return unaryType
 }

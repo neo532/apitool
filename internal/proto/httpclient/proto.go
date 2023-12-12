@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/emicklei/proto"
+	"github.com/neo532/apitool/internal/base"
 )
 
 type Proto struct {
@@ -19,18 +20,11 @@ type Proto struct {
 	WraperMap      map[string]struct{}
 	CacheTpl       map[string]string
 
-	PackageDomainList PackageDomain
+	PackageDomainList base.PackageDomain
 }
 
-func IsAddWraper(wrapperName string) (b bool) {
-	if strings.TrimSuffix(wrapperName, wrapper) != wrapperName {
-		return true
-	}
-	return
-}
-
-func (pb *Proto) IsNeedAddWraper(method *Method) (b bool) {
-	if method.RespTpl != "" {
+func (pb *Proto) IsNeedAddWrapper(method *Method) (b bool) {
+	if method.ReplyTypeWrapper != "" {
 		if _, ok := pb.MessageNameMap[method.ReplyTypeWrapper]; !ok {
 			return true
 		}

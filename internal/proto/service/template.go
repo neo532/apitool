@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"html/template"
 	"strings"
+
+	"github.com/neo532/apitool/internal/base"
+	"github.com/neo532/apitool/internal/proto/entity"
 )
 
 //nolint:lll
@@ -12,17 +15,9 @@ var serviceTemplate = `
 package {{ .PackageName }}
 
 import (
-    {{- if .UseContext }}
-    "context"
-    {{- end }}
-    {{- if .UseIO }}
-    "io"
-    {{- end }}
-
+	{{range $key,$value := .ImportList }}{{ $value }}"{{ $key }}"
+	{{ end }}
     pb "{{ .Package }}"
-    {{- if .GoogleEmpty }}
-    "google.golang.org/protobuf/types/known/emptypb"
-    {{- end }}
 )
 
 type {{ .Service }}{{ .ServiceType }} struct {
@@ -40,7 +35,7 @@ func New{{ .Service }}{{ .ServiceType }}(
 {{- $s1 := "google.protobuf.Empty" }}
 {{ range .Methods }}
 {{- if eq .Type 1 }}
-func ({{ .ServiceShortAlias }} *{{ .Service }}{{ .ServiceType }}) {{ .Name }}(c context.Context, req {{ if eq .Request $s1 }}*emptypb.Empty{{ else }}*pb.{{ .Request }}{{ end }}) (reply {{ if eq .Reply $s1 }}*emptypb.Empty{{ else }}*pb.{{ .Reply }}{{ end }}, err error) {
+func ({{ .ServiceShortAlias }} *{{ .Service }}{{ .ServiceType }}) {{ .Name }}(c context.Context, req *{{ .RequestType }}) (reply *{{ .ReplyType }}, err error) {
     return 
 }
 
@@ -76,8 +71,7 @@ func ({{ .ServiceShortAlias }} *{{ .Service }}{{ .ServiceType }}) {{ .Name }}(co
 }
 
 {{- else if eq .Type 4 }}
-func ({{ .ServiceShortAlias }} *{{ .Service }}{{ .ServiceType }}) {{ .Name }}(req {{ if eq .Request $s1 }}*emptypb.Empty
-{{ else }}*pb.{{ .Request }}{{ end }}, conn pb.{{ .Service }}_{{ .Name }}Server) error {
+func ({{ .ServiceShortAlias }} *{{ .Service }}{{ .ServiceType }}) {{ .Name }}(req *{{ .RequestType }}, conn pb.{{ .Service }}_{{ .Name }}Server) error {
     for {
         err := conn.Send(&pb.{{ .Reply }}{})
         if err != nil {
@@ -89,15 +83,6 @@ func ({{ .ServiceShortAlias }} *{{ .Service }}{{ .ServiceType }}) {{ .Name }}(re
 {{- end }}
 {{- end }}
 `
-
-type MethodType uint8
-
-const (
-	unaryType          MethodType = 1
-	twoWayStreamsType  MethodType = 2
-	requestStreamsType MethodType = 3
-	returnsStreamsType MethodType = 4
-)
 
 // Service is a proto service.
 type Service struct {
@@ -111,6 +96,9 @@ type Service struct {
 
 	UseIO      bool
 	UseContext bool
+
+	ImportList        base.Import
+	PackageDomainList base.PackageDomain
 }
 
 // Method is a proto method.
@@ -120,35 +108,83 @@ type Method struct {
 	Request string
 	Reply   string
 
+	RequestType string
+	ReplyType   string
+
 	// type: unary or stream
-	Type MethodType
+	Type entity.MethodType
 
 	ServiceType       string
 	ServiceShortAlias string
 }
 
-func (s *Service) execute() ([]byte, error) {
-	const empty = "google.protobuf.Empty"
-	buf := new(bytes.Buffer)
+func (s *Service) Alias(m *Method) {
+	var pkg string
+	var ok bool
+
+	// request
+	if m.RequestType, ok = entity.SpecialMap[m.Request]; !ok {
+		if m.RequestType, pkg = s.PackageDomainList.ParsePackageInParam(m.Request); pkg != "" {
+			s.ImportList = s.ImportList.Special(pkg)
+		}
+		if !strings.Contains(m.RequestType, ".") {
+			m.RequestType = "pb." + m.RequestType
+		}
+	}
+
+	// reply
+	if m.ReplyType, ok = entity.SpecialMap[m.Reply]; !ok {
+		if m.ReplyType, pkg = s.PackageDomainList.ParsePackageInParam(m.Reply); pkg != "" {
+			s.ImportList = s.ImportList.Special(pkg)
+		}
+		if !strings.Contains(m.ReplyType, ".") {
+			m.ReplyType = "pb." + m.ReplyType
+		}
+	}
+}
+
+func (s *Service) execute() (rst []byte, err error) {
+
 	for _, method := range s.Methods {
-		if (method.Type == unaryType && (method.Request == empty || method.Reply == empty)) ||
-			(method.Type == returnsStreamsType && method.Request == empty) {
-			s.GoogleEmpty = true
+
+		s.Alias(method)
+
+		switch method.Type {
+		case entity.UnaryType:
+			s.ImportList = s.ImportList.Context()
+			if method.Request == entity.AnyPb ||
+				method.Reply == entity.AnyPb {
+				s.ImportList = s.ImportList.AnyPB()
+			}
+			if method.Request == entity.EmptyPb ||
+				method.Reply == entity.EmptyPb {
+				s.ImportList = s.ImportList.EmptyPB()
+			}
+		case entity.TwoWayStreamsType, entity.RequestStreamsType:
+			s.ImportList = s.ImportList.IO()
+		case entity.ReturnsStreamsType:
+			if method.Request == entity.AnyPb {
+				s.ImportList = s.ImportList.AnyPB()
+			}
+			if method.Request == entity.EmptyPb {
+				s.ImportList = s.ImportList.EmptyPB()
+			}
 		}
-		if method.Type == twoWayStreamsType || method.Type == requestStreamsType {
-			s.UseIO = true
-		}
-		if method.Type == unaryType {
-			s.UseContext = true
-		}
+
 		method.ServiceShortAlias = strings.ToLower(s.PackageName[:1])
 	}
-	tmpl, err := template.New("service").Parse(serviceTemplate)
-	if err != nil {
+	s.ImportList = s.ImportList.Show()
+
+	var tmpl *template.Template
+	if tmpl, err = template.
+		New("service").
+		Parse(serviceTemplate); err != nil {
 		return nil, err
 	}
-	if err := tmpl.Execute(buf, s); err != nil {
-		return nil, err
+	buf := new(bytes.Buffer)
+	if err = tmpl.Execute(buf, s); err != nil {
+		return
 	}
-	return buf.Bytes(), nil
+	rst = buf.Bytes()
+	return
 }

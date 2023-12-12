@@ -64,7 +64,7 @@ func New(opts ...Opt) (client Client) {
 		env:               transport.EnvProd,
 		responseMaxLength: 512,
 		logger:            &transport.LoggerDefault{},
-		middlewares:       make([]middleware.Middleware, 0, 1),
+		middlewares:       make([]middleware.Middleware, 0, 10),
 		retryTimes:        1,
 	}
 	for _, o := range opts {
@@ -95,6 +95,15 @@ func (r Client) Get(key string) (value string) {
 		}
 	}
 	return
+}
+
+func (r Client) CopyMiddleware() Client {
+	mds := make([]middleware.Middleware, 0, 1)
+	for _, mw := range mds {
+		mds = append(mds, mw)
+	}
+	r.middlewares = mds
+	return r
 }
 
 func (r Client) AddMiddleware(mds ...middleware.Middleware) Client {

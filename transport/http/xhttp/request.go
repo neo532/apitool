@@ -85,7 +85,6 @@ func WithCertFile(crt, key string) (oR Opt, err error) {
 	return
 }
 func WithCaCertFile(crt string) (oR Opt, err error) {
-
 	var caCrt []byte
 	if caCrt, err = os.ReadFile(crt); err != nil {
 		return
@@ -166,7 +165,7 @@ func WithErrorDecoder(errorDecoder DecodeErrorFunc) Opt {
 
 func New(clt client.Client, opts ...Opt) (req *Request) {
 	req = &Request{
-		transport: http.DefaultTransport.(*http.Transport),
+		transport: http.DefaultTransport.(*http.Transport).Clone(),
 
 		retryTimes:       clt.RetryTime(),
 		retryDuration:    time.Microsecond,

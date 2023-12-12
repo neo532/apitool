@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	"github.com/emicklei/proto"
+	"github.com/neo532/apitool/internal/base"
+	"github.com/neo532/apitool/internal/proto/entity"
 	"github.com/spf13/cobra"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
@@ -28,36 +30,45 @@ func init() {
 }
 
 // TODO gopackage 最好把gomod的包名全路径，不然service不好使
-
 func run(cmd *cobra.Command, args []string) {
 	if len(args) == 0 {
 		fmt.Fprintln(os.Stderr, "Please specify the proto file. Example: apitool service api/xxx.proto")
 		return
 	}
+	buildHttpClient(cmd, args[0])
+}
 
-	protoFileName := args[0]
+func buildHttpClient(cmd *cobra.Command, filePath string) {
+
+	var err error
+
+	pb := &Proto{
+		// MessageNameMap:    make(map[string]struct{}, 10),
+		// Services:          make([]*Service, 0, 10),
+		FilePath:          filePath,
+		PackageDomainList: base.NewPackageDomainList(),
+	}
+
+	var definition *proto.Proto
+	definition, err = pb.ReadProtoFile()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, fmt.Sprintf("Read proto[%s] has err[%+v]", pb.FilePath, err))
+		return
+	}
+
 	if targetDir == "" {
-		targetDir = filepath.Dir(protoFileName)
+		targetDir = filepath.Dir(filePath)
 	}
 	targetDir = strings.TrimSuffix(targetDir, "/")
-
-	reader, err := os.Open(protoFileName)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer reader.Close()
-
-	parser := proto.NewParser(reader)
-	definition, err := parser.Parse()
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	var (
 		pkg string
 		res []*Service
 	)
 	proto.Walk(definition,
+		proto.WithImport(func(i *proto.Import) {
+			pb.PackageDomainList.Add(i.Filename)
+		}),
 		proto.WithOption(func(o *proto.Option) {
 			if o.Name == "go_package" {
 				pkg = strings.Split(o.Constant.Source, ";")[0]
@@ -72,6 +83,9 @@ func run(cmd *cobra.Command, args []string) {
 
 				ServiceType: toUpperCamelCase(typ),
 				PackageName: typ,
+
+				ImportList:        base.NewImportList(),
+				PackageDomainList: pb.PackageDomainList,
 			}
 			for _, e := range s.Elements {
 				r, ok := e.(*proto.RPC)
@@ -80,7 +94,7 @@ func run(cmd *cobra.Command, args []string) {
 				}
 				cs.Methods = append(cs.Methods, &Method{
 					Service: serviceName(s.Name), Name: serviceName(r.Name), Request: r.RequestType,
-					Reply: r.ReturnsType, Type: getMethodType(r.StreamsRequest, r.StreamsReturns),
+					Reply: r.ReturnsType, Type: entity.GetMethodType(r.StreamsRequest, r.StreamsReturns),
 
 					ServiceType: toUpperCamelCase(typ),
 				})
@@ -107,19 +121,6 @@ func run(cmd *cobra.Command, args []string) {
 		}
 		fmt.Println(to)
 	}
-}
-
-func getMethodType(streamsRequest, streamsReturns bool) MethodType {
-	if !streamsRequest && !streamsReturns {
-		return unaryType
-	} else if streamsRequest && streamsReturns {
-		return twoWayStreamsType
-	} else if streamsRequest {
-		return requestStreamsType
-	} else if streamsReturns {
-		return returnsStreamsType
-	}
-	return unaryType
 }
 
 func serviceName(name string) string {
