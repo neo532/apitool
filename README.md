@@ -18,25 +18,24 @@ message {{ .ReplyName }} {
 ```
 
 ## File define
-{path}/{filePath}.api.proto
+{path}/{packageName}/{packageName}.api.proto
 
 ### Init a proto file
 ```
-apitool add api/{example1}/{pkg1}/{pkg1}.api.proto
-vim api/{example1}/{pkg1}/{pkg1}.api.proto
+apitool add {path}/{packageName}.api.proto
 ```
 
 ### Generate a httpclient's structs by a proto file.
 ```
-apitool pbstruct api/{example1}/{pkg1}/{pkg1}.api.proto
+apitool pbstruct {path}/{packageName}/{packageName}.api.proto
 ```
 
 ### Generate a httpclient by a proto file.
 ```
-apitool httpclient api/{example1}/{pkg1}/{pkg1}.api.proto
+apitool httpclient {path}/{packageName}/{packageName}.api.proto
 ```
 
 ### Generate a service by a proto file.
 ```
-apitool service api/{demo}/{pkg}/{pkg}.api.proto -t api/{demo}/{pkg}
+apitool service {path}/{packageName}/{packageName}.api.proto -t api/{path}/{packageName}
 ```
