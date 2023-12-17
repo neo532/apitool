@@ -9,13 +9,10 @@ package xhttp
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
-	"crypto/x509"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -32,8 +29,6 @@ import (
 type Request struct {
 	clt client.Client
 
-	transport *http.Transport
-
 	url                 string
 	method              string
 	contentType         string
@@ -42,7 +37,6 @@ type Request struct {
 	retryTimes       int
 	retryMaxDuration time.Duration
 	retryDuration    time.Duration
-	timeLimit        time.Duration
 
 	encoder      EncodeRequestFunc
 	decoder      DecodeResponseFunc
@@ -54,62 +48,10 @@ type Opt func(o *Request)
 
 func WithTimeLimit(d time.Duration) Opt {
 	return func(o *Request) {
-		o.timeLimit = d
+		o.clt = o.clt.Copy()
+		o.clt.HttpClient().Timeout = d
 	}
 }
-func WithMaxIdleConnsPerHost(n int) Opt {
-	return func(o *Request) {
-		o.transport.MaxIdleConnsPerHost = n
-	}
-}
-func initTLS(o *Request) {
-	if o.transport.TLSClientConfig == nil {
-		o.transport.TLSClientConfig = &tls.Config{}
-	}
-}
-func WithInsecureSkipVerify(b bool) Opt {
-	return func(o *Request) {
-		initTLS(o)
-		o.transport.TLSClientConfig.InsecureSkipVerify = b
-	}
-}
-func WithCertFile(crt, key string) (oR Opt, err error) {
-	var cert tls.Certificate
-	if cert, err = tls.LoadX509KeyPair(crt, key); err != nil {
-		return
-	}
-	oR = func(o *Request) {
-		initTLS(o)
-		o.transport.TLSClientConfig.Certificates = []tls.Certificate{cert}
-	}
-	return
-}
-func WithCaCertFile(crt string) (oR Opt, err error) {
-	var caCrt []byte
-	if caCrt, err = os.ReadFile(crt); err != nil {
-		return
-	}
-	pool := x509.NewCertPool()
-	pool.AppendCertsFromPEM(caCrt)
-
-	oR = func(o *Request) {
-		initTLS(o)
-		o.transport.TLSClientConfig.RootCAs = pool
-	}
-	return
-}
-func WithCert(crt, key []byte) (oR Opt, err error) {
-	var cert tls.Certificate
-	if cert, err = tls.X509KeyPair(crt, key); err != nil {
-		return
-	}
-	oR = func(o *Request) {
-		initTLS(o)
-		o.transport.TLSClientConfig.Certificates = []tls.Certificate{cert}
-	}
-	return
-}
-
 func WithUrl(s string) Opt {
 	return func(o *Request) {
 		o.url = s
@@ -165,12 +107,9 @@ func WithErrorDecoder(errorDecoder DecodeErrorFunc) Opt {
 
 func New(clt client.Client, opts ...Opt) (req *Request) {
 	req = &Request{
-		transport: http.DefaultTransport.(*http.Transport).Clone(),
-
 		retryTimes:       clt.RetryTime(),
 		retryDuration:    time.Microsecond,
 		retryMaxDuration: 20 * time.Microsecond,
-		timeLimit:        3 * time.Second,
 
 		errorDecoder: DefaultErrorDecoder,
 		encoder:      DefaultRequestEncoder,
@@ -196,17 +135,16 @@ func (r *Request) Do(c context.Context, req interface{}, reply interface{}) (err
 
 		reqHeader, headerBCurl := r.FmtHeader(c)
 
-		client := &http.Client{
-			Timeout:   r.timeLimit,
-			Transport: r.transport,
-		}
-
 		retryDuration := r.retryDuration
 		var er error
 		for i := 0; i <= r.retryTimes; i++ {
 
 			var param *http.Request
-			if param, err = http.NewRequest(r.method, url, bytes.NewReader(reqBody)); err != nil {
+			if param, err = http.NewRequestWithContext(
+				c,
+				r.method,
+				url,
+				bytes.NewReader(reqBody)); err != nil {
 				return
 			}
 			param.Header = reqHeader
@@ -214,7 +152,7 @@ func (r *Request) Do(c context.Context, req interface{}, reply interface{}) (err
 			// request
 			var resp *http.Response
 			start := time.Now()
-			resp, err = client.Do(param)
+			resp, err = r.clt.HttpClient().Do(param)
 			cost := time.Now().Sub(start)
 
 			var respCode int
@@ -226,6 +164,9 @@ func (r *Request) Do(c context.Context, req interface{}, reply interface{}) (err
 				}
 				if resp != nil {
 					respCode = resp.StatusCode
+					if resp.Body != nil {
+						defer resp.Body.Close()
+					}
 				}
 				if cancelRetry, err = r.errorDecoder(c, resp); err != nil {
 					break
@@ -242,7 +183,7 @@ func (r *Request) Do(c context.Context, req interface{}, reply interface{}) (err
 			c = header.AppendToContext(c,
 				"url", r.url,
 				"cost", cost.String(),
-				"limit", r.timeLimit.String(),
+				"limit", r.clt.HttpClient().Timeout.String(),
 				"httpcode", strconv.Itoa(respCode),
 			)
 
@@ -283,7 +224,7 @@ func (r *Request) log(c context.Context,
 	}
 	msg := fmt.Sprintf("[code:%d] [limit:%s] [cost:%s] [curl -X '%s' '%s'%s%s] [rst:%s]",
 		respCode,
-		r.timeLimit.String(),
+		r.clt.HttpClient().Timeout.String(),
 		cost.String(),
 		r.method,
 		url,
@@ -365,7 +306,6 @@ func DefaultResponseDecoder(c context.Context, res *http.Response, v interface{}
 		return
 	}
 
-	defer res.Body.Close()
 	if body, err = io.ReadAll(res.Body); err != nil {
 		return
 	}

@@ -110,8 +110,8 @@ func generate(proto string, args []string) error {
 		"--go_out=paths=source_relative:.",
 		// "--go-grpc_out=paths=source_relative:.",
 		// "--go-http_out=paths=source_relative:.",
-		//"--go-errors_out=paths=source_relative:.",
-		//"--openapi_out=paths=source_relative:.",
+		// "--go-errors_out=paths=source_relative:.",
+		// "--openapi_out=paths=source_relative:.",
 	}
 	input = append(input, inputExt...)
 	protoBytes, err := os.ReadFile(proto)

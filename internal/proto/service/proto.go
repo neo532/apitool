@@ -9,12 +9,7 @@ import (
 )
 
 type Proto struct {
-	FilePath string
-	//PackageName string
-	////Package        string
-	//MessageNameMap map[string]struct{} // exists message name
-	//Services       []*Service
-
+	FilePath          string
 	PackageDomainList base.PackageDomain
 }
 

@@ -39,7 +39,7 @@ func New{{ .Service }}XHttpClient(clt client.Client) (xclt *{{ .Service }}XHttpC
 	{{- end }}
 	}
 	if d, ok := domains[string(clt.Env())]; ok {
-		xclt.WithDomain(d)
+		xclt.Domain = d
 	}
 	{{- end}}
 	return

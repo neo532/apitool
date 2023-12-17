@@ -1,24 +1,14 @@
-package add
-
-import (
-	"bytes"
-	"strings"
-	"text/template"
-)
-
-const protoTemplate = `
 syntax = "proto3";
 
-package {{.Package}};
+package proto;
 
 import "google/api/annotations.proto";
-import "validate/validate.proto";
 import "google/api/domain.proto";
 import "google/protobuf/empty.proto";
 
-option go_package = "{{.GoPackage}}";
+option go_package = "github.com/neo532/apitool/transport/http/proto";
 
-service {{.Service}} {
+service Proto {
 
     option (google.api.domain) = {
 		dev: "http://127.0.0.1:8500/demo"
@@ -52,22 +42,22 @@ service {{.Service}} {
 
 	rpc GetById (GetByIdRequest) returns (GetByIdReply){
 		option (google.api.http)={
-            get: "/v1/resource/{id}" 
-			needClient: "true"
+            get: "/v1/resource" 
+            timeLimit: "5"
         };
 	};
 }
 
 // Post
 message PostRequest {
-    int32 type = 1 [(validate.rules).int32 = {in: 1}];
-    string name = 2 [(validate.rules).string.pattern = "^[a-z0-9]{41}$"];
-    string summary = 3 [(validate.rules).string = {min_len: 1}];;
+    int32 type = 1;
+    string name = 2;
+    string summary = 3;
 }
 
 // Put
 message PutRequest {
-    int64 id = 2 [(validate.rules).int64 = {lt: 100000000}];
+    int64 id = 2;
 }
 
 // Get
@@ -78,28 +68,9 @@ message GetReply {
 
 // GetById
 message GetByIdRequest {
-    uint64 id = 1 [(validate.rules).uint64 = {lt: 100000000}];
+    uint64 id = 1;
 }
 message GetByIdReply {
 	string url = 1;
     int32 status = 2;
-}
-
-`
-
-func (p *Proto) execute() (b []byte, err error) {
-
-	var tmpl *template.Template
-	if tmpl, err = template.
-		New("proto").
-		Parse(strings.TrimSpace(protoTemplate)); err != nil {
-		return
-	}
-
-	buf := new(bytes.Buffer)
-	if err = tmpl.Execute(buf, p); err != nil {
-		return
-	}
-	b = buf.Bytes()
-	return
 }

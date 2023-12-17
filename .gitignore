@@ -37,6 +37,7 @@ bin/
 .fsw.yml
 
 apitool
+transport/http/xhttp/server/apitoolServer
 protoc-gen-go-http/protoc-gen-go-http
 
 *.csv

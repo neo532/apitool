@@ -8,33 +8,36 @@ import (
 
 // Proto is a proto generator.
 type Proto struct {
-	Name        string
-	Path        string
-	Service     string
-	Package     string
-	GoPackage   string
-	JavaPackage string
+	FileName  string
+	Path      string
+	Service   string
+	Package   string
+	GoPackage string
 }
 
 // Generate generate a proto template.
-func (p *Proto) Generate() error {
-	body, err := p.execute()
-	if err != nil {
-		return err
+func (p *Proto) Generate() (err error) {
+
+	var body []byte
+	if body, err = p.execute(); err != nil {
+		return
 	}
-	wd, err := os.Getwd()
-	if err != nil {
-		panic(err)
+
+	var dir string
+	if dir, err = os.Getwd(); err != nil {
+		return
 	}
-	to := path.Join(wd, p.Path)
-	if _, err := os.Stat(to); os.IsNotExist(err) {
-		if err := os.MkdirAll(to, 0o700); err != nil {
-			return err
+
+	to := path.Join(dir, p.Path)
+	if _, err = os.Stat(to); os.IsNotExist(err) {
+		if err = os.MkdirAll(to, 0o700); err != nil {
+			return
 		}
 	}
-	name := path.Join(to, p.Name)
-	if _, err := os.Stat(name); !os.IsNotExist(err) {
-		return fmt.Errorf("%s already exists", p.Name)
+
+	name := path.Join(to, p.FileName)
+	if _, err = os.Stat(name); !os.IsNotExist(err) {
+		return fmt.Errorf("%s already exists", p.FileName)
 	}
 	return os.WriteFile(name, body, 0o644)
 }

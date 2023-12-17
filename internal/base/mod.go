@@ -12,12 +12,13 @@ import (
 )
 
 // ModulePath returns go module path.
-func ModulePath(filename string) (string, error) {
+func ModuleName(filename string) (pkg string, err error) {
 	modBytes, err := os.ReadFile(filename)
 	if err != nil {
-		return "", err
+		return
 	}
-	return modfile.ModulePath(modBytes), nil
+	pkg = modfile.ModulePath(modBytes)
+	return
 }
 
 // ModuleVersion returns module version.

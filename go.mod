@@ -10,4 +10,7 @@ require (
 	google.golang.org/protobuf v1.31.0
 )
 
-require golang.org/x/text v0.13.0
+require (
+	github.com/google/go-cmp v0.6.0 // indirect
+	golang.org/x/text v0.13.0
+)

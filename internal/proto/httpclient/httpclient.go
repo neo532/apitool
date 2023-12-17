@@ -155,9 +155,11 @@ func buildHttpClient(cmd *cobra.Command, filePath string) {
 		b, err := s.execute()
 		if err != nil {
 			log.Fatal(err)
+			return
 		}
 		if err := os.WriteFile(to, b, 0o644); err != nil {
 			log.Fatal(err)
+			return
 		}
 		if verboseValue != "" {
 			fmt.Println(to)
