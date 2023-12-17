@@ -1,6 +1,6 @@
 package test
 
-// in case of that import huge amount of package,I annotation this file.
+// In case of that importing huge amount of packages,I annotation this file.
 
 // import (
 // 	"context"
