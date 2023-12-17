@@ -20,7 +20,7 @@ var (
 	CmdClient = &cobra.Command{
 		Use:   "httpclient",
 		Short: "Generate the proto Client implementations",
-		Long:  "Generate the proto Client implementations. Example: apitool httpclient api/xxx.proto -target-dir=internal/service",
+		Long:  "Generate the proto Client implementations. Example: apitool httpclient api/xxx.proto",
 		Run:   run,
 	}
 

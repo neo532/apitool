@@ -11,9 +11,9 @@ init:
 	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 	go install github.com/neo532/apitool@latest
 	go install github.com/google/gnostic/cmd/protoc-gen-openapi@latest
-	go install github.com/envoyproxy/protoc-gen-validate@latest
 	go install github.com/gogo/protobuf/protoc-gen-gofast@latest
 	go install github.com/favadi/protoc-go-inject-tag@latest
+
 
 # show help
 help:

@@ -4,6 +4,8 @@
 package base
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -28,7 +30,7 @@ func GoInstall(path ...string) error {
 }
 
 // Run a command.
-func Run(command string, inputs ...string) (err error) {
+func Run(command string, inputs ...string) (reply string, err error) {
 	var isVerbose bool
 	for _, v := range inputs {
 		if v == "verbose" {
@@ -39,10 +41,17 @@ func Run(command string, inputs ...string) (err error) {
 		fmt.Printf(fmt.Sprintf("shell: %s %s\n", command, strings.Join(inputs, " ")))
 	}
 	cmd := exec.Command(command, inputs...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
 	if err = cmd.Run(); err != nil {
 		return
 	}
+	if stderr.String() != "" {
+		err = errors.New(stderr.String())
+		return
+	}
+	reply = stdout.String()
 	return
 }

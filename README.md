@@ -1,77 +1,42 @@
-# 对外API
+# Instruction
 
-## 功能
-该项目内容核心文件.proto，其它文件全为.proto文件生成.
-* HTTP路由表
-* 接口参数验证
-* 参数结构体
-* 错误码定义
-* RPC客户端
-* HTTP客户端
-
-
-
-## 安装工具
+## Install
 ```
 go install github.com/neo532/apitool@master
 cd apitool
 make init
 ```
 
-## 响应值外包模版
-将该字符串放入{filePath}.tpl文件中,然后将{filePath}写入rpc.option下的RespTpl值里面即可
+## Template
+save this in {filePath}.tpl,and write {filePath} into rpc.option.RespTpl's Value.
 ```
-message {{ .Reply }}Wraper {
+message {{ .ReplyName }} { 
     int32 code = 1;
     string message = 2;
-    {{ .Reply }} data = 3;
+    {{ .ReplyType }} data = 3;
 }
 ```
 
-## 创建 & 生成
-{微服务名}/{包名}/{文件名}.proto
-{包名}={文件名}
+## File define
+{path}/{filePath}.api.proto
 
-### 创建proto模板 & 书写
+### Init a proto file
 ```
 apitool add api/{example1}/{pkg1}/{pkg1}.api.proto
 vim api/{example1}/{pkg1}/{pkg1}.api.proto
 ```
 
-### 生成API服务代码+pb结构文件
+### Generate a httpclient's structs by a proto file.
 ```
 apitool pbstruct api/{example1}/{pkg1}/{pkg1}.api.proto
 ```
 
-### 生成HTTP客户端文件
+### Generate a httpclient by a proto file.
 ```
-// 不填路径就默认和proto文件同包
 apitool httpclient api/{example1}/{pkg1}/{pkg1}.api.proto
-// -t 路径，以项目根路径开始
-apitool httpclient api/{example1}/{pkg1}/{pkg1}.api.proto -t api/{example1}/{pkg1}
 ```
 
-
-### 生成GRPC客户端文件
+### Generate a service by a proto file.
 ```
-apitool grpcclient api/{example1}/{pkg1}/{pkg1}.api.proto
-```
-
-
-### 生成Service层文件
-```
-// -t 路径，以项目根路径开始,不传默认proto同级目录
-apitool service api/{example1}/{pkg1}/{pkg1}.api.proto -t api/{example1}/{pkg1}
-```
-
-
-### 编写错误码proto文件后，在api根目录执行，生成错误码文件
-```
-make errors
-```
-
-### openapi.yaml 文件可作用swagger-ui页面展示
-```
-// 该命令可在根目录生成所有api的openapi.yaml文件
-make api
+apitool service api/{demo}/{pkg}/{pkg}.api.proto -t api/{demo}/{pkg}
 ```

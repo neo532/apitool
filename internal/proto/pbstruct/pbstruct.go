@@ -68,8 +68,7 @@ func run(cmd *cobra.Command, args []string) {
 		return
 	}
 	pbGoPath := strings.Replace(proto, ".proto", ".pb.go", 1)
-	err = base.Run("protoc-go-inject-tag", "-input="+pbGoPath, verboseValue)
-	if err != nil {
+	if _, err = base.Run("protoc-go-inject-tag", "-input="+pbGoPath, verboseValue); err != nil {
 		fmt.Println(err)
 	}
 }
