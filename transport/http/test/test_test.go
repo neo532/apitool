@@ -1,6 +1,9 @@
 package test
 
 // In case of that importing huge amount of packages,I annotation this file.
+// step1,make init
+// step2,apitool httpclient ./transport/http/proto/proto.api.proto
+// step3,open this file
 
 // import (
 // 	"context"
