@@ -79,9 +79,8 @@ func (s *{{ .Service }}XHttpClient) {{ .Name }}(ctx context.Context, req *{{ .Re
 	req = &{{ .RequestType }}{}
 	{{ end }}
 	{{ if eq .ReplyType .AnyTypeKey }}
-	resp = &{{ .ReplyType }}{}
-	err = xhttp.New(s.Client, opts...).Do(ctx, req, resp)
-	{{ else if  eq .ReplyTypeWrapper "" }}
+	err = xhttp.New(s.Client, opts...).Do(ctx, req, nil)
+	{{ else if eq .ReplyTypeWrapper "" }}
 	resp = &{{ .ReplyType }}{}
 	err = xhttp.New(s.Client, opts...).Do(ctx, req, resp)
 	{{ else }}
