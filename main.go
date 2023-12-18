@@ -17,7 +17,7 @@ var (
 		Use:     "apitool",
 		Short:   "Apitool: An elegant toolkit for api.",
 		Long:    `Apitool: An elegant toolkit for api.`,
-		Version: "v1.0.39",
+		Version: "v1.0.40",
 	}
 )
 
