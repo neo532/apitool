@@ -2,10 +2,11 @@ package pbstruct
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
+	"runtime"
 	"strings"
 
 	"github.com/neo532/apitool/internal/base"
@@ -48,12 +49,15 @@ func run(cmd *cobra.Command, args []string) {
 		err   error
 		proto = strings.TrimSpace(args[0])
 	)
-	if err = look("protoc-gen-go", "protoc-gen-go-grpc", "protoc-gen-go-http", "protoc-gen-go-errors", "protoc-gen-openapi"); err != nil {
+	if err = look(
+		"protoc-gen-go",
+		// "protoc-gen-go-grpc",
+		// "protoc-gen-go-http",
+		// "protoc-gen-go-errors",
+		//"protoc-gen-openapi",
+	); err != nil {
 		// update the apitool plugins
-		cmd := exec.Command("apitool", "upgrade")
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		if err = cmd.Run(); err != nil {
+		if _, err = base.Run("apitool", "upgrade"); err != nil {
 			fmt.Println(err)
 			return
 		}
@@ -64,7 +68,11 @@ func run(cmd *cobra.Command, args []string) {
 		err = walk(proto, args)
 	}
 	if err != nil {
+		fmt.Println(runtime.Caller(0))
+		log.Println(err)
+		fmt.Println(fmt.Sprintf("err:\t%+v", err))
 		fmt.Println(err)
+		fmt.Println(runtime.Caller(0))
 		return
 	}
 	pbGoPath := strings.Replace(proto, ".proto", ".pb.go", 1)
@@ -95,7 +103,7 @@ func walk(dir string, args []string) error {
 }
 
 // generate is used to execute the generate command for the specified proto file
-func generate(proto string, args []string) error {
+func generate(proto string, args []string) (err error) {
 	input := []string{
 		"--proto_path=.",
 	}
@@ -113,29 +121,20 @@ func generate(proto string, args []string) error {
 		// "--openapi_out=paths=source_relative:.",
 	}
 	input = append(input, inputExt...)
-	protoBytes, err := os.ReadFile(proto)
-	if err == nil && len(protoBytes) > 0 {
-		if ok, _ := regexp.Match(`\n[^/]*(import)\s+"validate/validate.proto"`, protoBytes); ok {
-			//input = append(input, "--validate_out=lang=go,paths=source_relative:.")
-		}
-	}
 	input = append(input, proto)
 	for _, a := range args {
 		if strings.HasPrefix(a, "-") {
 			input = append(input, a)
 		}
 	}
-	fd := exec.Command("protoc", input...)
-	fd.Stdout = os.Stdout
-	fd.Stderr = os.Stderr
-	fd.Dir = "."
-	if err := fd.Run(); err != nil {
-		return err
+
+	if _, err = base.Run("protoc", input...); err != nil {
+		return
 	}
 	if verboseValue != "" {
 		fmt.Printf("proto: %s\n", proto)
 	}
-	return nil
+	return
 }
 
 func pathExists(path string) bool {

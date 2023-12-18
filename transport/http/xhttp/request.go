@@ -222,13 +222,14 @@ func (r *Request) log(c context.Context,
 	} else {
 		reqBodyS = ""
 	}
-	msg := fmt.Sprintf("[code:%d] [limit:%s] [cost:%s] [curl -X '%s' '%s'%s%s] [rst:%s]",
+	msg := fmt.Sprintf("[code:%d] [limit:%s] [cost:%s] [curl -X '%s' '%s'%s%s%s] [rst:%s]",
 		respCode,
 		r.clt.HttpClient().Timeout.String(),
 		cost.String(),
 		r.method,
 		url,
 		header.String(),
+		r.clt.CurlArgs(),
 		reqBodyS,
 		respStr,
 	)

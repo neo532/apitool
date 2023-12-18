@@ -46,6 +46,10 @@ func Run(command string, inputs ...string) (reply string, err error) {
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err = cmd.Run(); err != nil {
+		if stderr.String() != "" {
+			err = errors.New(err.Error() + "\n" + strings.TrimSpace(stderr.String()))
+			return
+		}
 		return
 	}
 	if stderr.String() != "" {

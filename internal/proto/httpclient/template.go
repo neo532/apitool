@@ -72,23 +72,6 @@ func (s *{{ .Service }}XHttpClient) {{ .Name }}(ctx context.Context, req *{{ .Re
 		opts = append(opts, xhttp.WithErrorDecoder(s.ErrorDecoder))
 	}
 	{{ end }} 
-	{{ if and (ne .CertFileCrt "") (ne .CertFileKey "") }}
-	var certFile xhttp.Opt
-	if certFile, err = xhttp.WithCertFile("{{ .CertFileCrt }}", "{{ .CertFileKey }}"); err != nil {
-		return
-	}
-	opts = append(opts, certFile)
-	{{ end }} 
-	{{ if ne .CaCertFile "" }}
-	var caCertFile xhttp.Opt
-	if caCertFile, err = xhttp.WithCaCertFile("{{ .CaCertFile }}"); err != nil {
-		return
-	}
-	opts = append(opts, caCertFile)
-	{{ end }} 
-	{{- if .InsecureSkipVerify }}
-	opts = append(opts, xhttp.WithInsecureSkipVerify({{ .InsecureSkipVerify }}))
-	{{ end }}
 	{{- if .HasQueryArgs }}
 	if ctx, err = xhttp.AppendUrlByStruct(ctx, req); err != nil {
 		return

@@ -180,7 +180,9 @@ func buildHttpClient(cmd *cobra.Command, filePath string) {
 		pb.AppendWraper()
 
 		// let wraper append to file for PB generator
-		base.Run("apitool", "pbstruct", pb.FilePath, verboseValue)
+		if _, err = base.Run("apitool", "pbstruct", pb.FilePath, verboseValue); err != nil {
+			fmt.Println(fmt.Sprintf("err:\t%+v", err))
+		}
 	}
 }
 

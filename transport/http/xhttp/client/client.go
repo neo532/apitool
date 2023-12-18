@@ -9,9 +9,11 @@ package client
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
 	"net/http"
 	"os"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -26,6 +28,8 @@ type Client struct {
 	middlewares       []middleware.Middleware
 	responseMaxLength int
 	retryTimes        int
+
+	curlArgs string
 
 	transport *http.Transport
 
@@ -106,6 +110,9 @@ func WithInsecureSkipVerify(b bool) Opt {
 	return func(o *Client) {
 		initTLS(o)
 		o.transport.TLSClientConfig.InsecureSkipVerify = b
+		if b {
+			o.setCurlArgs(" --insecure")
+		}
 	}
 }
 func WithCertFile(crt, key string) (oR Opt, err error) {
@@ -115,7 +122,18 @@ func WithCertFile(crt, key string) (oR Opt, err error) {
 	}
 	oR = func(o *Client) {
 		initTLS(o)
-		o.transport.TLSClientConfig.Certificates = []tls.Certificate{cert}
+		if o.transport.TLSClientConfig.Certificates == nil {
+			o.transport.TLSClientConfig.Certificates = make([]tls.Certificate, 0, 1)
+		}
+		o.transport.TLSClientConfig.Certificates = append(
+			o.transport.TLSClientConfig.Certificates,
+			cert,
+		)
+		o.setCurlArgs(fmt.Sprintf(
+			" --cert %s --key %s",
+			strings.TrimSpace(crt),
+			strings.TrimSpace(key),
+		))
 	}
 	return
 }
@@ -124,23 +142,14 @@ func WithCaCertFile(crt string) (oR Opt, err error) {
 	if caCrt, err = os.ReadFile(crt); err != nil {
 		return
 	}
-	pool := x509.NewCertPool()
-	pool.AppendCertsFromPEM(caCrt)
 
 	oR = func(o *Client) {
 		initTLS(o)
-		o.transport.TLSClientConfig.RootCAs = pool
-	}
-	return
-}
-func WithCert(crt, key []byte) (oR Opt, err error) {
-	var cert tls.Certificate
-	if cert, err = tls.X509KeyPair(crt, key); err != nil {
-		return
-	}
-	oR = func(o *Client) {
-		initTLS(o)
-		o.transport.TLSClientConfig.Certificates = []tls.Certificate{cert}
+		if o.transport.TLSClientConfig.RootCAs == nil {
+			o.transport.TLSClientConfig.RootCAs = x509.NewCertPool()
+		}
+		o.transport.TLSClientConfig.RootCAs.AppendCertsFromPEM(caCrt)
+		o.setCurlArgs(" --cacert " + strings.TrimSpace(crt))
 	}
 	return
 }
@@ -166,6 +175,16 @@ func New(opts ...Opt) (client Client) {
 	}
 	client.httpClient.Transport = client.transport
 	return
+}
+
+func (r *Client) setCurlArgs(arg string) {
+	if strings.Contains(r.curlArgs, arg) == false {
+		r.curlArgs += arg
+	}
+}
+
+func (r *Client) CurlArgs() string {
+	return r.curlArgs
 }
 
 func (r Client) Env() transport.Env {
