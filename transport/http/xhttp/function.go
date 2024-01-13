@@ -28,7 +28,7 @@ const (
 var (
 	TagName = "json"
 	// ErrNotSupportType is a type of error that means invaild type.
-	ErrNotSupportType error = errors.New("Invaild type,within string,int,int64,uint64,float64,[]string,[]int,[]int64,[]uint64,[]float64!")
+	// ErrNotSupportType error = errors.New("Invaild type,within string,int,int64,uint64,float64,[]string,[]int,[]int64,[]uint64,[]float64!")
 	// ErrMustBeStruct is a type of error that means the type must be a struct.
 	ErrMustBeStruct error = errors.New("QueryArgs must be a struct or a struct pointer!")
 )
@@ -108,14 +108,14 @@ func AppendUrlByStruct(c context.Context, param interface{}) (ctx context.Contex
 					qa = qa.Add(nameSlice, strconv.FormatFloat(v.Float(), 'f', -1, 64))
 				case reflect.Bool:
 					qa = qa.Add(nameSlice, strconv.FormatBool(v.Bool()))
-				default:
-					err = ErrNotSupportType
-					return
+					// default:
+					// 	err = ErrNotSupportType
+					// 	return
 				}
 			}
-		default:
-			err = ErrNotSupportType
-			return
+			// default:
+			// 	err = ErrNotSupportType
+			// 	return
 		}
 	}
 	ctx = queryargs.MergeToContext(c, qa)
